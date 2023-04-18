@@ -1,6 +1,5 @@
 using Bunit;
-using Bunit.JSInterop;
-using System;
+
 using Xunit;
 
 namespace Radzen.Blazor.Tests
