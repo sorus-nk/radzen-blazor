@@ -25,13 +25,6 @@ namespace Radzen.Blazor
         [Parameter]
         public bool TriState { get; set; } = false;
 
-        /// <summary>
-        /// Gets or sets a value indicating whether read only.
-        /// </summary>
-        /// <value><c>true</c> if read only; otherwise, <c>false</c>.</value>
-        [Parameter]
-        public bool ReadOnly { get; set; }
-
         ClassList BoxClassList => ClassList.Create("rz-chkbox-box")
                                            .Add("rz-state-active", !object.Equals(Value, false))
                                            .AddDisabled(Disabled);
