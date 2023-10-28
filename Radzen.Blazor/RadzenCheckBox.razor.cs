@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+
 using Radzen.Blazor.Rendering;
+
 using System.Threading.Tasks;
 
 namespace Radzen.Blazor
@@ -22,6 +24,13 @@ namespace Radzen.Blazor
         /// <value><c>true</c> if tri-state; otherwise, <c>false</c>.</value>
         [Parameter]
         public bool TriState { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether read only.
+        /// </summary>
+        /// <value><c>true</c> if read only; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool ReadOnly { get; set; }
 
         ClassList BoxClassList => ClassList.Create("rz-chkbox-box")
                                            .Add("rz-state-active", !object.Equals(Value, false))
