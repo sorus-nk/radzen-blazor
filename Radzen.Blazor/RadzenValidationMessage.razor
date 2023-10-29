@@ -1,0 +1,19 @@
+﻿@code {
+/// <summary>
+        /// Specifies the component which this validator should validate. Must be set to the <see cref="IRadzenFormComponent.Name" /> of an existing component.
+        /// </summary>
+        [Parameter]
+        public string Component { get; set; }
+
+        /// <summary>
+        /// Specifies the message displayed when the validator is invalid.
+        /// </summary>
+        [Parameter]
+        public string Text { get; set; }
+
+        /// <summary>
+        /// Determines if the validator is displayed as a popup or not. Set to <c>false</c> by default.
+        /// </summary>
+        [Parameter]
+        public bool Popup { get; set; }
+}
