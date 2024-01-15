@@ -27,6 +27,7 @@ namespace Radzen.Blazor
         /// Specifies additional custom attributes that will be rendered by the input.
         /// </summary>
         /// <value>The attributes.</value>
+        [Parameter]
         public IReadOnlyDictionary<string, object> InputAttributes { get; set; }
 
         /// <summary>
@@ -63,6 +64,22 @@ namespace Radzen.Blazor
         /// <value>The filter delay.</value>
         [Parameter]
         public int FilterDelay { get; set; } = 500;
+
+        /// <summary>
+        /// Gets or sets the underlying input type.
+        /// </summary>
+        /// <remarks>
+        /// This does not apply when <see cref="Multiline"/> is <c>true</c>.
+        /// </remarks>
+        /// <value>The input type.</value>
+        [Parameter]
+        public string InputType { get; set; } = "text";
+
+        /// <summary>
+        /// Gets or sets the underlying max length.
+        /// </summary>
+        /// <value>The max length value.</value>
+        public long? MaxLength { get; set; }
 
         /// <summary>
         /// Gets search input reference.

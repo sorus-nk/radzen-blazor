@@ -1,8 +1,22 @@
 ﻿@using RadzenBlazorDemos.Data
 @using RadzenBlazorDemos.Models.Northwind
 
-<RadzenDataGrid @ref="grid" @bind-Value=@selectedEmployees KeyProperty="EmployeeID" IsLoading="@isLoading" Count="@count" Data="@employees" LoadData="@LoadData" FilterPopupRenderMode="PopupRenderMode.OnDemand" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" FilterMode="FilterMode.Advanced" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="4" PagerHorizontalAlign="HorizontalAlign.Center" TItem="Employee" ColumnWidth="200px">
+<RadzenDataGrid @ref="grid" @bind-Value=@selectedEmployees SelectionMode="DataGridSelectionMode.Multiple" KeyProperty="EmployeeID" IsLoading="@isLoading" Count="@count" Data="@employees" 
+    LoadData="@LoadData" FilterPopupRenderMode="PopupRenderMode.OnDemand" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" 
+    FilterMode="FilterMode.Advanced" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="4" 
+    PagerHorizontalAlign="HorizontalAlign.Center" TItem="Employee" ColumnWidth="200px">
     <Columns>
+        <RadzenDataGridColumn TItem="Employee" Width="60px" Sortable="false" Filterable="false">
+            <HeaderTemplate>
+                <RadzenCheckBox TriState="false" TValue="bool?" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "Select all items" }})"
+                                Value="@(selectedEmployees == null || selectedEmployees?.Any() != true ? false : !employees.All(i => selectedEmployees.Select(e => e.EmployeeID).Contains(i.EmployeeID)) ? null : employees.Any(i => selectedEmployees.Select(e => e.EmployeeID).Contains(i.EmployeeID)))"
+                                Change="@(args => selectedEmployees = args == true ? (selectedEmployees ?? Enumerable.Empty<Employee>()).Union(employees.Where(i => !(selectedEmployees ?? Enumerable.Empty<Employee>()).Select(e => e.EmployeeID).Contains(i.EmployeeID))).ToList() : null)" />
+            </HeaderTemplate>
+            <Template Context="data">
+                <RadzenCheckBox TriState="false" Value="@(selectedEmployees != null && selectedEmployees.Select(e => e.EmployeeID).Contains(data.EmployeeID))" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "Select item" }})"
+                                TValue="bool" />
+            </Template>
+        </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Employee" Property="EmployeeID" Filterable="false" Title="ID" Frozen="true" Width="50px" TextAlign="TextAlign.Center" />
         <RadzenDataGridColumn TItem="Employee" Property="FirstName" Title="First Name">
                 <EditTemplate Context="employee">
@@ -13,14 +27,14 @@
         <RadzenDataGridColumn TItem="Employee" Property="Title" Title="Title" 
             Type="typeof(IEnumerable<string>)" FilterValue="@selectedTitles" FilterOperator="FilterOperator.Contains">
             <FilterTemplate>
-                <RadzenDropDown @bind-Value=@selectedTitles Style="width:100%"
+                <RadzenDropDown @bind-Value=@selectedTitles Style="width:100%" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "select title" }})"
                     Change=@OnSelectedTitlesChange Data="@(titles)" AllowClear="true" Multiple="true" />
             </FilterTemplate>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Employee" Title="Customers" Property="Orders" FilterProperty="Customer/CustomerID" Sortable=false
                                   Type="typeof(IEnumerable<Customer>)" FilterValue="@selectedCustomers" FilterOperator="FilterOperator.In">
             <FilterTemplate>
-                <RadzenDropDown @bind-Value=@selectedCustomers Style="width:100%" TextProperty="CompanyName" ValueProperty="CustomerID"
+                <RadzenDropDown @bind-Value=@selectedCustomers Style="width:100%" TextProperty="CompanyName" ValueProperty="CustomerID" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "select company" }})"
                     Change=@OnSelectedCustomersChange Data="@(customers)" AllowSelectAll="false" Multiple="true" MaxSelectedLabels="2" />
             </FilterTemplate>
             <Template>

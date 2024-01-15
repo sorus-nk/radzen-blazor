@@ -980,20 +980,21 @@ namespace Radzen
     /// <summary>
     /// Specifies the position at which a Radzen Blazor component renders its built-in <see cref="RadzenPager" />.
     /// </summary>
+    [Flags]
     public enum PagerPosition
     {
         /// <summary>
         /// RadzenPager is displayed at the top of the component.
         /// </summary>
-        Top,
+        Top = 1,
         /// <summary>
         /// RadzenPager is displayed at the bottom of the component.
         /// </summary>
-        Bottom,
+        Bottom = 2,
         /// <summary>
         /// RadzenPager is displayed at the top and at the bottom of the component.
         /// </summary>
-        TopAndBottom
+        TopAndBottom = Top | Bottom
     }
 
     /// <summary>
@@ -1690,7 +1691,7 @@ namespace Radzen
         /// <summary>
         /// Satisfied if the current value is not <see cref="string.Empty"/>.
         /// </summary>
-        IsNotEmpty, 
+        IsNotEmpty,
         /// <summary>
         /// Custom operator if not need to generate the filter.
         /// </summary>
@@ -2073,6 +2074,12 @@ namespace Radzen
         /// </summary>
         /// <value>The title.</value>
         public string Title { get; set; }
+
+        /// <summary>
+        /// Gets or sets the format string used to display the key in the group.
+        /// </summary>
+        /// <value>The format string.</value>
+        public string FormatString { get; set; }
 
         /// <summary>
         /// Gets the title of the group.
@@ -2824,7 +2831,7 @@ namespace Radzen
             }
             return false;
         }
-        
+
         /// <summary>
         /// Method to only replace first occurence of a substring in a string
         /// </summary>

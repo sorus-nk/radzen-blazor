@@ -54,6 +54,20 @@ namespace Radzen.Blazor
         [Parameter]
         public LineType LineType { get; set; }
 
+        /// <summary>
+        /// Gets or sets the color range of the fill.
+        /// </summary>
+        /// <value>The color range of the fill.</value>
+        [Parameter]
+        public IList<SeriesColorRange> FillRange { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color range of the stroke.
+        /// </summary>
+        /// <value>The color range of the stroke.</value>
+        [Parameter]
+        public IList<SeriesColorRange> StrokeRange { get; set; }
+
         /// <inheritdoc />
         public override string Color
         {
@@ -106,7 +120,7 @@ namespace Radzen.Blazor
 
             if (index >= 0)
             {
-                var color = PickColor(index, Fills, Fill);
+                var color = PickColor(index, Fills, Fill, FillRange, Value(item));
 
                 if (color != null)
                 {
@@ -222,12 +236,16 @@ namespace Radzen.Blazor
         {
             var list = new List<ChartDataLabel>();
 
+            (string Anchor, int Sign) position;
+
             foreach (var d in Data)
             {
-                list.Add(new ChartDataLabel 
-                { 
-                    Position = new Point() { X = TooltipX(d) + offsetX + 8, Y = TooltipY(d) + offsetY },
-                    TextAnchor = "start",
+                position = Value(d) < 0 ? ("end", -1) : Value(d) == 0 ? ("middle", 0) : ("start", 1);
+
+                list.Add(new ChartDataLabel
+                {
+                    Position = new Point() { X = TooltipX(d) + offsetX + (8 * position.Sign), Y = TooltipY(d) + offsetY },
+                    TextAnchor = position.Anchor,
                     Text = Chart.ValueAxis.Format(Chart.CategoryScale, Value(d))
                 });
             }

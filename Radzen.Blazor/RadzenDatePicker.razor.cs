@@ -24,9 +24,46 @@ namespace Radzen.Blazor
     public partial class RadzenDatePicker<TValue> : RadzenComponent, IRadzenFormComponent
     {
         /// <summary>
+        /// Gets or sets a value indicating whether calendar week will be shown.
+        /// </summary>
+        /// <value><c>true</c> if calendar week is shown; otherwise, <c>false</c>.</value>
+
+        [Parameter]
+        public bool ShowCalendarWeek { get; set; }
+
+        /// <summary>
+        /// Gets or sets the previous month aria label text.
+        /// </summary>
+        /// <value>The previous month aria label text.</value>
+        [Parameter]
+        public string CalendarWeekTitle { get; set; } = "#";
+
+        /// <summary>
+        /// Gets or sets the previous month aria label text.
+        /// </summary>
+        /// <value>The previous month aria label text.</value>
+        [Parameter]
+        public string PrevMonthAriaLabel { get; set; } = "Previous month";
+
+        /// <summary>
+        /// Gets or sets the next month aria label text.
+        /// </summary>
+        /// <value>The next month aria label text.</value>
+        [Parameter]
+        public string NextMonthAriaLabel { get; set; } = "Next month";
+
+        /// <summary>
+        /// Gets or sets the toggle Am/Pm aria label text.
+        /// </summary>
+        /// <value>The toggle Am/Pm aria label text.</value>
+        [Parameter]
+        public string ToggleAmPmAriaLabel { get; set; } = "Toggle Am/Pm";
+
+        /// <summary>
         /// Specifies additional custom attributes that will be rendered by the input.
         /// </summary>
         /// <value>The attributes.</value>
+        [Parameter]
         public IReadOnlyDictionary<string, object> InputAttributes { get; set; }
 
         RadzenDropDown<int> monthDropDown;
@@ -653,6 +690,13 @@ namespace Radzen.Blazor
         public bool Disabled { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether days part is shown.
+        /// </summary>
+        /// <value><c>true</c> if days part is shown; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool ShowDays { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets a value indicating whether time part is shown.
         /// </summary>
         /// <value><c>true</c> if time part is shown; otherwise, <c>false</c>.</value>
@@ -1035,6 +1079,9 @@ namespace Radzen.Blazor
             if (PopupRenderMode == PopupRenderMode.OnDemand && !Disabled && !ReadOnly && !Inline)
             {
                 await popup.ToggleAsync(Element);
+#if NET5_0_OR_GREATER
+                await FocusAsync();
+#endif
             }
         }
 

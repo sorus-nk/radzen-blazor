@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Radzen.Blazor
 {
@@ -77,15 +79,6 @@ namespace Radzen.Blazor
                 if (item.Selected)
                 {
                     SelectedIndex = items.Count;
-                    if (!Multiple)
-                    {
-                        expandedIdexes.Clear();
-                    }
-
-                    if (!expandedIdexes.Contains(SelectedIndex))
-                    {
-                        expandedIdexes.Add(SelectedIndex);
-                    }
                 }
 
                 items.Add(item);
@@ -125,10 +118,8 @@ namespace Radzen.Blazor
         /// <returns><c>true</c> if the specified index is selected; otherwise, <c>false</c>.</returns>
         protected bool IsSelected(int index, RadzenAccordionItem item)
         {
-            return expandedIdexes.Contains(index);
+            return item.GetSelected() == true;
         }
-
-        List<int> expandedIdexes = new List<int>();
 
         /// <summary>
         /// Gets the item's title attribute value.
@@ -162,21 +153,24 @@ namespace Radzen.Blazor
             return string.IsNullOrWhiteSpace(item.ExpandAriaLabel) ? "Expand" : item.ExpandAriaLabel;          
         }
         
-        internal async System.Threading.Tasks.Task SelectItem(RadzenAccordionItem item)
+        internal async System.Threading.Tasks.Task SelectItem(RadzenAccordionItem item, bool? value = null)
         {
             await CollapseAll(item);
 
             var itemIndex = items.IndexOf(item);
-            if (!expandedIdexes.Contains(itemIndex))
+
+            var selected = item.GetSelected();
+
+            if (selected)
             {
-                expandedIdexes.Add(itemIndex);
-                await Expand.InvokeAsync(itemIndex);
+                await Collapse.InvokeAsync(itemIndex);
             }
             else
             {
-                expandedIdexes.Remove(itemIndex);
-                await Collapse.InvokeAsync(itemIndex);
+                await Expand.InvokeAsync(itemIndex);
             }
+
+            item.SetSelected(value ?? !selected);
 
             if (!Multiple)
             {
@@ -192,13 +186,29 @@ namespace Radzen.Blazor
             {
                 foreach (var i in items.Where(i => i != item))
                 {
-                    var itemIndex = items.IndexOf(i);
-                    if (expandedIdexes.Contains(itemIndex))
+                    if (i.GetSelected())
                     {
-                        expandedIdexes.Remove(itemIndex);
+                        i.SetSelected(false);
                         await Collapse.InvokeAsync(items.IndexOf(i));
                     }
                 }
+            }
+        }
+
+        bool preventKeyPress = false;
+        async Task OnKeyPress(KeyboardEventArgs args, RadzenAccordionItem item)
+        {
+            var key = args.Code != null ? args.Code : args.Key;
+
+            if (key == "Space" || key == "Enter")
+            {
+                preventKeyPress = true;
+
+                await SelectItem(item);
+            }
+            else
+            {
+                preventKeyPress = false;
             }
         }
     }

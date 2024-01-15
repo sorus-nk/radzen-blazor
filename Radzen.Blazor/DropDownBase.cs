@@ -251,6 +251,13 @@ namespace Radzen
         public string DisabledProperty { get; set; }
 
         /// <summary>
+        /// Gets or sets the search aria label text.
+        /// </summary>
+        /// <value>The search aria label text.</value>
+        [Parameter]
+        public string SearchAriaLabel { get; set; } = "Search";
+
+        /// <summary>
         /// Gets or sets the selected item changed.
         /// </summary>
         /// <value>The selected item changed.</value>
@@ -720,6 +727,10 @@ namespace Radzen
                     if (virtualize != null)
                     {
                         await InvokeAsync(virtualize.RefreshDataAsync);
+                    }
+                    else
+                    {
+                        await LoadData.InvokeAsync(await GetLoadDataArgs());
                     }
                     await InvokeAsync(() => { StateHasChanged(); });
 #endif

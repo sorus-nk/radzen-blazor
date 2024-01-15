@@ -16,7 +16,7 @@
 {
     var visibleColumns = columns.Where(c => c.GetVisible()).ToList();
 
-    <div @ref=@Element style="@Style" @attributes="Attributes" class="rz-data-grid @GetCssClass()" id="@GetId()">
+    <div @ref=@Element style="@Style;outline:none;" @attributes="Attributes" class="rz-data-grid @GetCssClass()" id="@GetId()" @onkeydown="@OnKeyDown" @onkeydown:preventDefault="preventKeyDown" tabindex=0>
         @if (AllowGrouping || AllowColumnPicking)
         {
             <div class="rz-group-header" @onmouseup=@(args => EndColumnDropToGroup())>
@@ -35,7 +35,7 @@
                             {
                                 <div class="rz-group-header-item">
                                     <span class="rz-group-header-item-title">@gd.GetTitle()</span>
-                                    <a href="javascript:void(0)" @onclick=@(args => RemoveGroupAsync(gd)) role="button" class="rz-dialog-titlebar-icon rz-dialog-titlebar-close">
+                                    <a aria-label="@RemoveGroupArialLabel" @onclick:preventDefault="true" @onclick=@(args => RemoveGroupAsync(gd)) role="button" class="rz-dialog-titlebar-icon rz-dialog-titlebar-close">
                                         <span class="rzi rzi-times"></span>
                                     </a>
                                 </div>
@@ -52,7 +52,7 @@
                 {
                     <div class="rz-column-picker">
                         <RadzenDropDown SelectAllText="@AllColumnsText" AllowSelectAll="@AllowPickAllColumns"
-                            MaxSelectedLabels="@ColumnsPickerMaxSelectedLabels"
+                            MaxSelectedLabels="@ColumnsPickerMaxSelectedLabels" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", SelectVisibleColumnsArialLabel }})"
                             SelectedItemsText="@ColumnsShowingText" Change=@ToggleColumns
                             @bind-Value="@selectedColumns" FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
                             Multiple="true" AllowFiltering="@ColumnsPickerAllowFiltering"
@@ -75,7 +75,7 @@
                 </div>
             }
         }
-        @if (AllowPaging && (PagerPosition == PagerPosition.Top || PagerPosition == PagerPosition.TopAndBottom))
+        @if (AllowPaging && PagerPosition.HasFlag(PagerPosition.Top))
         {
             <RadzenPager HorizontalAlign="@PagerHorizontalAlign" AlwaysVisible="@PagerAlwaysVisible" @ref="topPager" Count="@Count" PageSize="@PageSize" PageNumbersCount="@PageNumbersCount" PageChanged="@ChangePage" PageSizeChanged="@OnPageSizeChanged" PageSizeOptions="@PageSizeOptions" ShowPagingSummary="@ShowPagingSummary" PagingSummaryFormat="@PagingSummaryFormat" PageSizeText="@PageSizeText" Density="@Density" FirstPageTitle="@FirstPageTitle" FirstPageAriaLabel="@FirstPageAriaLabel" PrevPageAriaLabel="@PrevPageAriaLabel" PrevPageTitle="@PrevPageTitle" NextPageAriaLabel="@NextPageAriaLabel" NextPageTitle="@NextPageTitle" LastPageAriaLabel="@LastPageAriaLabel" LastPageTitle="@LastPageTitle" PageAriaLabelFormat="@PageAriaLabelFormat" PageTitleFormat="@PageTitleFormat" />
         }
@@ -93,7 +93,7 @@
                     }
                     @foreach (var column in visibleColumns)
                     {
-                        <col id=@(getColumnUniqueId(visibleColumns.IndexOf(column)) + "-col") style="@column.GetStyle()">
+                        <col id=@(getColumnUniqueId(visibleColumns.IndexOf(column)) + "-col") style="@column.GetStyle(false, false, true)">
                     }
                 </colgroup>
                 <thead>
@@ -102,12 +102,15 @@
                         <tr>
                             @if (i == 0) // Only add the th elements for the first row
                             {
+                             @if (ShowGroupExpandColumn)
+                                {
                                     @foreach (var g in Groups)
                                     {
                                         <th class="rz-col-icon rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
                                             <span class="rz-column-title"></span>
                                         </th>
                                     }
+                                }
                                     @if (Template != null && ShowExpandColumn && i == 0)
                                     {
                                         <th class="rz-col-icon rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
@@ -139,13 +142,15 @@
                     @if (AllowFiltering && (FilterMode == FilterMode.Simple || FilterMode == FilterMode.SimpleWithMenu) && columns.Where(column => column.Filterable && (!string.IsNullOrEmpty(column.GetFilterProperty()) || column.FilterTemplate != null)).Any())
                     {
                         <tr>
-                             
-                            @foreach (var g in Groups)
-                            {
-                                <th class="rz-col-icon  rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
-                                    <span class="rz-column-title"></span>
-                                </th>
-                            }
+                             @if (ShowGroupExpandColumn)
+                                {
+                                    @foreach (var g in Groups)
+                                    {
+                                        <th class="rz-col-icon  rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
+                                            <span class="rz-column-title"></span>
+                                        </th>
+                                    }
+                                }
                             @if (Template != null && ShowExpandColumn  )
                             {
                                 <th class="rz-col-icon  rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
@@ -165,7 +170,7 @@
                                                 }
                                                 else
                                                 {
-                                                    <label class="rz-cell-filter-label" style="height:35px; width:100%;" onclick="event.preventDefault()">
+                                                    <span class="rz-cell-filter-label" style="height:35px; width:100%;" onclick="event.preventDefault()">
                                                         @if (PropertyAccess.IsDate(column.FilterPropertyType))
                                                         {
                                                             if (FilterMode == FilterMode.Simple)
@@ -258,7 +263,7 @@
                                                                                 </div>
                                                                             </div>
 
-                                                                            <RadzenDatePicker TValue="@object" AllowInput=@(AllowFilterDateInput)
+                                                                            <RadzenDatePicker TValue="@object" AllowInput=@(AllowFilterDateInput) InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", column.Title + FilterValueArialLabel  + column.GetFilterValue() }})"
                                                                   ShowTime="@column.ShowTimeForDateTimeFilter()" ShowTimeOkButton="false" Inline="true" DateFormat="@getFilterDateFormat(column)"
                                                                   Value="@column.GetFilterValue()" Change="@(args => { column.SetFilterValue(args.Value); SaveSettings(); })" />
 
@@ -278,7 +283,7 @@
                                                             else
                                                             {
                                                                 <RadzenDataGridFilterMenu Grid="@this" Column="@column" />
-                                                                <RadzenDatePicker Disabled=@column.CanSetFilterValue() TValue="@object" Style="width:100%" AllowInput=@(AllowFilterDateInput) AllowClear="true"
+                                                                <RadzenDatePicker Disabled=@column.CanSetFilterValue() TValue="@object" Style="width:100%" AllowInput=@(AllowFilterDateInput) AllowClear="true" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", column.Title + FilterValueArialLabel  + column.GetFilterValue() }})"
                                                       ShowTime="false" ShowTimeOkButton="false" DateFormat="@getFilterDateFormat(column)"
                                                       Value="@column.GetFilterValue()" Change="@(args => { if(!args.HasValue) { InvokeAsync(() => ClearFilter(column, true)); } else {column.SetFilterValue(args.Value); InvokeAsync(() => ApplyFilter(column, true));} })" />
                                                             }
@@ -310,13 +315,13 @@
                                                             {
                                                                 <RadzenDataGridFilterMenu Grid="@this" Column="@column" />
                                                             }
-                                                            <input disabled=@column.CanSetFilterValue() id="@(getFilterInputId(column))" @onchange="@((args) => OnFilter(args, column))" @onkeydown="@((args) => OnFilterKeyPress(args, column))" value="@column.GetFilterValue()" type="text" placeholder="@column.GetFilterPlaceholder()" class="rz-textbox" style="width: 100%;" />
+                                                            <input aria-label=@(column.Title + FilterValueArialLabel + column.GetFilterValue()) disabled=@column.CanSetFilterValue() id="@(getFilterInputId(column))" @onchange="@((args) => OnFilter(args, column))" @onkeydown="@((args) => OnFilterKeyPress(args, column))" value="@column.GetFilterValue()" type="text" placeholder="@column.GetFilterPlaceholder()" class="rz-textbox" style="width: 100%;" />
                                                             @if (column.GetFilterValue() != null && filters.Any(d => d.Property == column.GetFilterProperty()))
                                                             {
                                                                 <i @onclick="@((args) => ClearFilter(column))" class="rzi rz-cell-filter-clear" style="position:absolute;right:10px;">close</i>
                                                             }
                                                         }
-                                                    </label>
+                                                    </span>
                                                 }
                                             </div>
                                         </div>
@@ -361,11 +366,14 @@
                             <tr class="">
                                 @if (i == 0) // Only add the th elements for the first row
                                 {
-                                    @foreach (var g in Groups)
+                                    @if (ShowGroupExpandColumn)
                                     {
-                                        <td class="rz-col-icon rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
-                                            <span class="rz-column-title"></span>
-                                        </td>
+                                        @foreach (var g in Groups)
+                                        {
+                                            <td class="rz-col-icon rz-unselectable-text" scope="col" rowspan=@(deepestChildColumnLevel + 1)>
+                                                <span class="rz-column-title"></span>
+                                            </td>
+                                        }
                                     }
                                     @if (Template != null && ShowExpandColumn && i == 0)
                                     {
@@ -413,22 +421,33 @@
             }
         </div>
 
-        @if (AllowPaging && (PagerPosition == PagerPosition.Bottom || PagerPosition == PagerPosition.TopAndBottom))
+        @if (AllowPaging && PagerPosition.HasFlag(PagerPosition.Bottom))
         {
             <RadzenPager HorizontalAlign="@PagerHorizontalAlign" AlwaysVisible="@PagerAlwaysVisible" @ref="bottomPager" Count="@Count" PageSize="@PageSize" PageNumbersCount="@PageNumbersCount" PageChanged="@ChangePage" PageSizeChanged="@OnPageSizeChanged" PageSizeOptions="@PageSizeOptions" ShowPagingSummary="@ShowPagingSummary" PagingSummaryFormat="@PagingSummaryFormat" PageSizeText="@PageSizeText" Density="@Density" FirstPageTitle="@FirstPageTitle" FirstPageAriaLabel="@FirstPageAriaLabel" PrevPageAriaLabel="@PrevPageAriaLabel" PrevPageTitle="@PrevPageTitle" NextPageAriaLabel="@NextPageAriaLabel" NextPageTitle="@NextPageTitle" LastPageAriaLabel="@LastPageAriaLabel" LastPageTitle="@LastPageTitle" PageAriaLabelFormat="@PageAriaLabelFormat" PageTitleFormat="@PageTitleFormat" />
+        }
+        @if (@FooterTemplate != null)
+        {
+            <div class="rz-custom-footer">
+                @FooterTemplate
+            </div>
         }
     </div>
 }
 @code {
     internal void SetAttribute(Dictionary<string, object> attributes, string attributeName, object attributeValue)
     {
+        var separator = attributeName == "class" ? " " : ";";
+
         if (!attributes.ContainsKey(attributeName))
         {
             attributes.Add(attributeName, attributeValue);
         }
         else
         {
-            attributes[attributeName] = $"{attributeValue};{attributes[attributeName]}";
+            var values = $"{attributes[attributeName]}".Split(separator).Where(v => v != string.Empty);
+            var newValues = $"{attributeValue}".Split(separator).Where(v => v != string.Empty);
+
+            attributes[attributeName] = string.Join(separator, values.Concat(newValues).Distinct());
         }
     }
 
@@ -505,7 +524,7 @@
                     @if (this.LoadChildData.HasDelegate && this.ShowExpandColumn && this.allColumns.IndexOf(column) == 0)
                     {
                         <span class="rz-cell-toggle">
-                            <a class="@(getExpandIconCssClass(this, Item))" style="@(getExpandIconStyle(this, Item, rowArgs.Item1.Expandable))" href="javascript:void(0)" @onclick="_ => this.ExpandItem(Item)" @onclick:stopPropagation>
+                            <a aria-label="@ExpandChildItemAriaLabel" class="@(getExpandIconCssClass(this, Item))" style="@(getExpandIconStyle(this, Item, rowArgs.Item1.Expandable))" @onclick:preventDefault="true" @onclick="_ => this.ExpandItem(Item)" @onclick:stopPropagation>
                                 <span class="@(this.ExpandedItemStyle(Item))"></span>
                             </a>
                             <span class="rz-cell-data" @attributes="@spanAttributes">
@@ -553,7 +572,7 @@
             {
                 @foreach (var c in this.childColumns.Where(c => c.GetVisible() && c.Parent == column))
                 {
-                    @RenderCell(c, Item, Attributes, rowArgs, RowIndex)
+                    @RenderCell(c, Item, this.CellAttributes(Item, c), rowArgs, RowIndex)
                 }
             }
         </text>

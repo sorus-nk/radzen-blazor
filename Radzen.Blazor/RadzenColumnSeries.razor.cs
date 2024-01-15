@@ -54,6 +54,20 @@ namespace Radzen.Blazor
         [Parameter]
         public LineType LineType { get; set; }
 
+        /// <summary>
+        /// Gets or sets the color range of the fill.
+        /// </summary>
+        /// <value>The color range of the fill.</value>
+        [Parameter]
+        public IList<SeriesColorRange> FillRange { get; set; }
+
+        /// <summary>
+        /// Gets or sets the color range of the stroke.
+        /// </summary>
+        /// <value>The color range of the stroke.</value>
+        [Parameter]
+        public IList<SeriesColorRange> StrokeRange { get; set; }
+
         /// <inheritdoc />
         public override string Color
         {
@@ -101,7 +115,7 @@ namespace Radzen.Blazor
 
             if (index >= 0)
             {
-                var color = PickColor(index, Fills, Fill);
+                var color = PickColor(index, Fills, Fill, FillRange, Value(item));
 
                 if (color != null)
                 {
@@ -154,11 +168,7 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         internal override double TooltipY(TItem item)
         {
-            var y = base.TooltipY(item);
-            var ticks = Chart.ValueScale.Ticks(Chart.ValueAxis.TickDistance);
-            var y0 = Chart.ValueScale.Scale(Math.Max(0, ticks.Start));
-
-            return Math.Min(y, y0);
+            return base.TooltipY(item);
         }
 
         /// <inheritdoc />
@@ -195,7 +205,23 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         public override IEnumerable<ChartDataLabel> GetDataLabels(double offsetX, double offsetY)
         {
-            return base.GetDataLabels(offsetX, offsetY - 16);
+            var list = new List<ChartDataLabel>();
+
+            int sign;
+
+            foreach (var d in Data)
+            {
+                sign = Value(d) < 0 ? -1 : Value(d) == 0 ? 0 : 1;
+
+                list.Add(new ChartDataLabel
+                {
+                    Position = new Point() { X = TooltipX(d) + offsetX, Y = TooltipY(d) - offsetY - (16 * sign) },
+                    TextAnchor = "middle",
+                    Text = Chart.ValueAxis.Format(Chart.ValueScale, Value(d))
+                });
+            }
+
+            return list;
         }
     }
 }

@@ -9,14 +9,14 @@
         }
         @if(Tree != null && Tree.AllowCheckBoxes)
         {
-            <RadzenCheckBox Name="@($"{GetHashCode()}")" TValue="bool?" Value="@IsChecked()" Change="@CheckedChange" />
+            <RadzenCheckBox Name="@($"{GetHashCode()}")" TValue="bool?" Value="@IsChecked()" Change="@CheckedChange" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", Tree.SelectItemAriaLabel }})" />
         }
         @if (Template != null)
         {
             <div class="rz-treenode-label">@Template(this)</div>
         } else
         {
-            <label for="@(GetHashCode())" class="rz-treenode-label">@Text</label>
+            <span for="@(GetHashCode())" class="rz-treenode-label">@Text</span>
         }
     </div>
     @if (ChildContent != null && expanded)

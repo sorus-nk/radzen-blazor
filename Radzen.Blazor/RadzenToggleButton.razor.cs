@@ -20,6 +20,13 @@ namespace Radzen.Blazor
     public partial class RadzenToggleButton : RadzenButton, IRadzenFormComponent
     {
         /// <summary>
+        /// Specifies additional custom attributes that will be rendered by the input.
+        /// </summary>
+        /// <value>The attributes.</value>
+        [Parameter]
+        public IReadOnlyDictionary<string, object> InputAttributes { get; set; }
+
+        /// <summary>
         /// Gets or sets the name.
         /// </summary>
         /// <value>The name.</value>
@@ -245,7 +252,7 @@ namespace Radzen.Blazor
         public IFormFieldContext FormFieldContext { get; set; }
 
         /// <summary> Gets the current placeholder. Returns empty string if this component is inside a RadzenFormField.</summary>
-        protected string CurrentPlaceholder => FormFieldContext != null ? " " : Placeholder;
+        protected string CurrentPlaceholder => FormFieldContext?.AllowFloatingLabel == true ? " " : Placeholder;
 #if NET5_0_OR_GREATER
         /// <inheritdoc/>
         public virtual async ValueTask FocusAsync()

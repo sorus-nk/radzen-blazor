@@ -9,7 +9,7 @@
 <div @ref="@Element" style="@Style" @attributes="Attributes" class="@GetCssClass()" id="@GetId()">
     <div class="rz-fileupload-buttonbar">
         <span class="@ChooseClassList">
-            <input id="@Id" @ref="@fileUpload" @attributes="InputAttributes" type="file" multiple="@Multiple" accept="@Accept" disabled="@Disabled" 
+            <input id="@(Name ?? GetId())" @ref="@fileUpload" @attributes="InputAttributes" type="file" multiple="@Multiple" accept="@Accept" disabled="@Disabled" 
                    onchange="Radzen.uploadInputChange(event, '@Url', @Auto.ToString().ToLower(), @Multiple.ToString().ToLower(), true, '@ParameterName')" />
             @if (!string.IsNullOrEmpty(Icon))
             {
@@ -26,7 +26,7 @@
                 @foreach (var file in files)
                 {
                 <div class="rz-fileupload-row" style="margin-bottom: 10px">
-                    <div><img src="@file.Url" width="50px" onerror="this.style.display='none';"></div>
+                    <div><img src="@file.Url" width="50px" onerror="this.style.display='none';" alt="@ImageAlternateText"></div>
                     <div>@file.Name</div>
                     <div>@(file.Size / 1024) KB</div>
                     <div>

@@ -25,7 +25,14 @@ namespace Radzen.Blazor
         {
             return Size == ButtonSize.Medium ? "md" : Size == ButtonSize.Large ? "lg" : Size == ButtonSize.Small ? "sm" : "xs";
         }
-        
+
+        /// <summary>
+        /// Gets or sets the text.
+        /// </summary>
+        /// <value>The text.</value>
+        [Parameter]
+        public string ImageAlternateText { get; set; } = "image";
+
         /// <summary>
         /// Gets or sets the text.
         /// </summary>
@@ -115,6 +122,13 @@ namespace Radzen.Blazor
         /// <value><c>true</c> to alway open popup with items; othersie, <c>false</c>. Default is <c>false</c>.</value>
         [Parameter]
         public bool AlwaysOpenPopup { get; set; }
+
+
+        /// <summary>
+        /// Gets or sets the open button aria-label attribute.
+        /// </summary>
+        [Parameter]
+        public string OpenAriaLabel { get; set; } = "Open";
 
         /// <summary>
         /// Gets or sets the click callback.
