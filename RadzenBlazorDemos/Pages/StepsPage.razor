@@ -3,10 +3,17 @@
 <RadzenText TextStyle="TextStyle.H2" TagName="TagName.H1" class="rz-pt-8">
     Steps
 </RadzenText>
-<RadzenText TextStyle="TextStyle.Subtitle1" class="rz-pb-4">
+<RadzenText TextStyle="TextStyle.Subtitle1" TagName="TagName.P" class="rz-pb-4">
     Use Radzen Blazor <strong>Steps</strong> component to guide users through a process or sequence of actions. The component consists of a series of numbered steps that represent the various stages of the process.
 </RadzenText>
 
 <RadzenExample ComponentName="Steps" Example="StepsConfig">
     <StepsConfig />
+</RadzenExample>
+
+<RadzenText TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-12">
+    The <code>CanChange</code> event allows you to conditionally prevent the step change. Use it to ensure your users have entered all the required information before moving to the next step.
+</RadzenText>
+<RadzenExample ComponentName="StepsCanChange" Example="StepsCanChange">
+    <StepsCanChange />
 </RadzenExample>

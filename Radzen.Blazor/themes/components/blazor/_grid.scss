@@ -9,12 +9,10 @@ $grid-cell-font-size: var(--rz-body-font-size) !default;
 $grid-cell-line-height: var(--rz-body-line-height) !default;
 
 $grid-hover-background-color: var(--rz-secondary-lighter) !default;
-$grid-hover-color: var(--rz-secondary-dark) !default;
+$grid-hover-color: var(--rz-on-secondary-lighter) !default;
 
 $grid-selected-background-color: var(--rz-secondary-dark) !default;
-$grid-selected-color: var(--rz-text-contrast-color) !default;
-
-$grid-stripe-background-color: var(--rz-base-100) !default;
+$grid-selected-color: var(--rz-on-secondary-dark) !default;
 
 $grid-toolbar-background-color: var(--rz-base-background-color) !default;
 $grid-header-cell-border: $grid-cell-border !default;
@@ -51,10 +49,10 @@ $grid-filter-buttons-border: var(--rz-border-normal) !default;
 $grid-filter-buttons-background-color: var(--rz-base-200) !default;
 
 $grid-clear-filter-button-background-color: var(--rz-secondary) !default;
-$grid-clear-filter-button-color: var(--rz-text-contrast-color) !default;
+$grid-clear-filter-button-color: var(--rz-on-secondary) !default;
 $grid-clear-filter-button-shadow: inherit !default;
 $grid-apply-filter-button-background-color: var(--rz-primary) !default;
-$grid-apply-filter-button-color: var(--rz-text-contrast-color) !default;
+$grid-apply-filter-button-color: var(--rz-on-primary) !default;
 $grid-apply-filter-button-shadow: inherit !default;
 
 $grid-header-filter-icon-margin: 0 0.5rem 0 auto !default;
@@ -71,6 +69,9 @@ $grid-sort-icon-color: var(--rz-text-disabled-color) !default;
 
 $grid-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.01) !default;
 $grid-background-color: var(--rz-base-background-color) !default;
+
+$grid-stripe-background-color: var(--rz-base-100) !default;
+$grid-stripe-odd-background-color: $grid-background-color !default;
 
 $grid-column-resizer-width: 0.5rem !default;
 $grid-column-resizer-helper-width: 0.25rem !default;
@@ -123,8 +124,6 @@ $column-draggable-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.1) !default;
 
   --rz-grid-selected-background-color: #{$grid-selected-background-color};
   --rz-grid-selected-color: #{$grid-selected-color};
-
-  --rz-grid-stripe-background-color: #{$grid-stripe-background-color};
 
   --rz-grid-toolbar-background-color: #{$grid-toolbar-background-color};
   --rz-grid-header-cell-border: #{$grid-header-cell-border};
@@ -182,6 +181,9 @@ $column-draggable-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.1) !default;
   
   --rz-grid-shadow: #{$grid-shadow};
   --rz-grid-background-color: #{$grid-background-color};
+
+  --rz-grid-stripe-background-color: #{$grid-stripe-background-color};
+  --rz-grid-stripe-odd-background-color: #{$grid-stripe-odd-background-color};
   
   --rz-grid-column-resizer-width: #{$grid-column-resizer-width};
   --rz-grid-column-resizer-helper-width: #{$grid-column-resizer-helper-width};
@@ -511,16 +513,16 @@ $column-draggable-shadow: 0 8px 10px 0 rgba(0, 0, 0, 0.1) !default;
 
 .rz-grid-table-striped {
   tbody {
-    > tr:not(.rz-expanded-row-content)  {
+    > tr:not(.rz-expanded-row-content) {
       &:nth-child(even) {
         > td {
-          background-color: var(--rz-grid-stripe-background-color);
+            background-color: var(--rz-grid-stripe-background-color);
         }
       }
 
       &:nth-child(odd) {
         > td {
-          background-color: var(--rz-grid-background-color);
+          background-color: var(--rz-grid-stripe-odd-background-color);
         }
       }
     }

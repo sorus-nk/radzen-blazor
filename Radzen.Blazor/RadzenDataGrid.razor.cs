@@ -92,6 +92,7 @@ namespace Radzen.Blazor
         }
 
         string lastLoadDataArgs;
+        Task lastLoadDataTask = Task.CompletedTask;
         private async ValueTask<Microsoft.AspNetCore.Components.Web.Virtualization.ItemsProviderResult<TItem>> LoadItems(Microsoft.AspNetCore.Components.Web.Virtualization.ItemsProviderRequest request)
         {
             var view = AllowPaging ? PagedView : View;
@@ -108,9 +109,9 @@ namespace Radzen.Blazor
 
             if (lastLoadDataArgs != loadDataArgs)
             {
-                lastLoadDataArgs = loadDataArgs;
+                await (lastLoadDataTask = InvokeLoadData(request.StartIndex, top));
 
-                await InvokeLoadData(request.StartIndex, top);
+                lastLoadDataArgs = loadDataArgs;
             }
 
             var totalItemsCount = LoadData.HasDelegate ? Count : view.Count();
@@ -833,31 +834,36 @@ namespace Radzen.Blazor
         [Parameter]
         public EventCallback<DataGridColumnSortEventArgs<TItem>> Sort { get; set; }
 
-        internal void OnSort(EventArgs args, RadzenDataGridColumn<TItem> column)
+        internal async Task OnSort(EventArgs args, RadzenDataGridColumn<TItem> column)
         {
             if (AllowSorting && column.Sortable)
             {
-                var property = column.GetSortProperty();
-                if (!string.IsNullOrEmpty(property))
+                if (GotoFirstPageOnSort)
                 {
-                    OrderBy(property);
+                    topPager?.FirstPage();
+                    bottomPager?.FirstPage();
+                    CurrentPage = 0;
                 }
-                else
+
+                var property = column.GetSortProperty();
+
+                SetColumnSortOrder(column);
+                await Sort.InvokeAsync(new DataGridColumnSortEventArgs<TItem>() { Column = column, SortOrder = column.GetSortOrder() });
+                SaveSettings();
+
+                if (LoadData.HasDelegate && IsVirtualizationAllowed())
                 {
-                    SetColumnSortOrder(column);
-
-                    Sort.InvokeAsync(new DataGridColumnSortEventArgs<TItem>() { Column = column, SortOrder = column.GetSortOrder() });
-                    SaveSettings();
-
-                    if (LoadData.HasDelegate && IsVirtualizationAllowed())
-                    {
-                        Data = null;
+                    Data = null;
 #if NET5_0_OR_GREATER
-                        ResetLoadData();
+                    ResetLoadData();
 #endif
-                    }
+                }
 
-                    InvokeAsync(ReloadInternal);
+                await InvokeAsync(ReloadInternal);
+
+                if (IsVirtualizationAllowed())
+                {
+                    StateHasChanged();
                 }
             }
         }
@@ -2269,6 +2275,7 @@ namespace Radzen.Blazor
         {
             if (firstRender && Visible && (LoadData.HasDelegate && Data == null) && IsVirtualizationAllowed())
             {
+                await Task.Yield();
                 Data = Enumerable.Empty<TItem>().Append(default(TItem));
             }
             else if(settings == null)
@@ -2477,6 +2484,12 @@ namespace Radzen.Blazor
         {
             return column.Columns != null || column.Parent != null;
         }
+
+        /// <summary>
+        /// Gets or sets the ability to automatically goto the first page when sorting is changed.
+        /// </summary>
+        [Parameter]
+        public bool GotoFirstPageOnSort { get; set; } = false;
 
         internal string getCompositeCellCSSClass(RadzenDataGridColumn<TItem> column)
         {
