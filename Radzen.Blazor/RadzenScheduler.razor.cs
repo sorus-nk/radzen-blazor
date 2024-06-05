@@ -102,6 +102,20 @@ namespace Radzen.Blazor
         public string TodayText { get; set; } = "Today";
 
         /// <summary>
+        /// Gets or sets the text of the next button. Set to <c>Next</c> by default.
+        /// </summary>
+        /// <value>The next text.</value>
+        [Parameter]
+        public string NextText { get; set; } = "Next";
+
+        /// <summary>
+        /// Gets or sets the text of the previous button. Set to <c>Previous</c> by default.
+        /// </summary>
+        /// <value>The previous text.</value>
+        [Parameter]
+        public string PrevText { get; set; } = "Previous";
+
+        /// <summary>
         /// Gets or sets the initial date displayed by the selected view. Set to <c>DateTime.Today</c> by default.
         /// </summary>
         /// <value>The date.</value>
@@ -137,6 +151,24 @@ namespace Radzen.Blazor
         /// </example>
         [Parameter]
         public EventCallback<SchedulerSlotSelectEventArgs> SlotSelect { get; set; }
+
+        /// <summary>
+        /// A callback that will be invoked when the user clicks the Today button.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// &lt;RadzenScheduler Data=@appointments TodaySelect=@OnTodaySelect&gt;
+        /// &lt;/RadzenScheduler&gt;
+        /// @code {
+        /// void OnTodaySelect(SchedulerTodaySelectEventArgs args)
+        /// {
+        ///     args.Today = DateTime.Today.AddDays(1);
+        /// }
+        /// }
+        /// </code>
+        /// </example>
+        [Parameter]
+        public EventCallback<SchedulerTodaySelectEventArgs> TodaySelect { get; set; }
 
         /// <summary>
         /// A callback that will be invoked when the user clicks an appointment in the current view. Commonly used to edit existing appointments.
@@ -234,6 +266,32 @@ namespace Radzen.Blazor
         /// </summary>
         [Parameter]
         public EventCallback<SchedulerLoadDataEventArgs> LoadData { get; set; }
+
+        /// <summary>
+        /// A callback that will be invoked when an appointment is being dragged and then dropped on a different slot.
+        /// Commonly used to change it to a different timeslot.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// &lt;RadzenScheduler Data=@appointments AppointmentMove=@OnAppointmentMove&gt;
+        /// &lt;/RadzenScheduler&gt;
+        /// @code {
+        ///   async Task OnAppointmentMove(SchedulerAppointmentMoveEventArgs moved)
+        ///   {
+        ///     var draggedAppointment = appointments.SingleOrDefault(x => x == (Appointment)moved.Appointment.Data);
+        ///     if (draggedAppointment != null)
+        ///     {
+        ///         draggedAppointment.Start = draggedAppointment.Start + moved.TimeSpan;
+        ///         draggedAppointment.End = draggedAppointment.End + moved.TimeSpan;
+        ///         await scheduler.Reload();
+        ///     }
+        ///   }
+        /// }
+        /// </code>
+        /// </example>
+        /// <value></value>
+        [Parameter]
+        public EventCallback<SchedulerAppointmentMoveEventArgs> AppointmentMove { get; set; }
 
         IList<ISchedulerView> Views { get; set; } = new List<ISchedulerView>();
 
@@ -382,7 +440,11 @@ namespace Radzen.Blazor
 
         async Task OnToday()
         {
-            CurrentDate = DateTime.Now.Date;
+            var args = new SchedulerTodaySelectEventArgs { Today = DateTime.Now.Date };
+
+            await TodaySelect.InvokeAsync(args);
+
+            CurrentDate = args.Today;
 
             await InvokeLoadData();
         }
@@ -518,7 +580,7 @@ namespace Radzen.Blazor
             var predicate = $"{EndProperty} >= @0 && {StartProperty} < @1";
 
             appointments = Data.AsQueryable()
-                               .Where(predicate, start, end)
+                               .Where(DynamicLinqCustomTypeProvider.ParsingConfig, predicate, start, end)
                                .ToList()
                                .Select(item => new AppointmentData { Start = startGetter(item), End = endGetter(item), Text = textGetter(item), Data = item });
 
@@ -609,6 +671,11 @@ namespace Radzen.Blazor
         bool IScheduler.HasMouseEnterAppointmentDelegate()
         {
             return AppointmentMouseEnter.HasDelegate;
+        }
+
+        bool IScheduler.HasAppointmentMoveDelegate()
+        {
+            return AppointmentMove.HasDelegate;
         }
     }
 }

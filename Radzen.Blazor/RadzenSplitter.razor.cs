@@ -94,7 +94,7 @@ namespace Radzen.Blazor
             }
         }
 
-        internal Task ResizeExec(MouseEventArgs args, int paneIndex)
+        internal Task StartResize(PointerEventArgs args, int paneIndex)
         {
             var pane = Panes[paneIndex];
             if (!pane.Resizable)
@@ -116,6 +116,24 @@ namespace Radzen.Blazor
         }
 
         /// <summary>
+        /// Value indicating if the splitter is resizing.
+        /// </summary>
+        public bool IsResizing { get; private set; }
+
+        /// <summary>
+        /// Called on pane resizing.
+        /// </summary>
+        [JSInvokable("RadzenSplitter.OnPaneResizing")]
+        public async Task OnPaneResizing()
+        {
+            IsResizing = true;
+
+            StateHasChanged();
+
+            await Task.CompletedTask;
+        }
+
+        /// <summary>
         /// Called when pane resized.
         /// </summary>
         /// <param name="paneIndex">Index of the pane.</param>
@@ -125,6 +143,8 @@ namespace Radzen.Blazor
         [JSInvokable("RadzenSplitter.OnPaneResized")]
         public async Task OnPaneResized(int paneIndex, double sizeNew, int? paneNextIndex, double? sizeNextNew)
         {
+            IsResizing = false;
+
             var pane = Panes[paneIndex];
 
             if (Resize.HasDelegate)
@@ -157,9 +177,11 @@ namespace Radzen.Blazor
 
                 paneNext.SizeRuntine = sizeNextNew.Value.ToString("0.##", CultureInfo.InvariantCulture) + "%";
             }
+
+            StateHasChanged();
         }
 
-        internal async Task CollapseExec(object args, int paneIndex, string paneId)
+        internal async Task OnCollapse(int paneIndex)
         {
             var pane = Panes[paneIndex];
             var paneNext = pane.Next();
@@ -192,7 +214,7 @@ namespace Radzen.Blazor
             await InvokeAsync(StateHasChanged);
         }
 
-        internal async Task ExpandExec(MouseEventArgs args, int paneIndex, string paneId)
+        internal async Task OnExpand(int paneIndex)
         {
             var pane = Panes[paneIndex];
             var paneNext = pane.Next();

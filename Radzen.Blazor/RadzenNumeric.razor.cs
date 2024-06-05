@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace Radzen.Blazor
     /// &lt;RadzenNumeric TValue="int" Min="1" Max="10" Change=@(args => Console.WriteLine($"Value: {args}")) /&gt;
     /// </code>
     /// </example>
-    public partial class RadzenNumeric<TValue> : FormComponent<TValue>
+    public partial class RadzenNumeric<TValue> : FormComponentWithAutoComplete<TValue>
     {
         /// <summary>
         /// Specifies additional custom attributes that will be rendered by the input.
@@ -83,7 +84,7 @@ namespace Radzen.Blazor
                 return;
             }
 
-            var step = decimal.TryParse(Step?.Replace(",", "."), out var stepVal) ? stepVal : 1;
+            var step = string.IsNullOrEmpty(Step) || Step == "any" ? 1 : decimal.Parse(Step.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
 
             var valueToUpdate = ConvertToDecimal(Value);
 
@@ -213,31 +214,7 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value><c>true</c> if input automatic complete is enabled; otherwise, <c>false</c>.</value>
         [Parameter]
-        public bool AutoComplete { get; set; } = false;
-
-        /// <summary>
-        /// Gets or sets a value indicating the type of built-in autocomplete
-        /// the browser should use.
-        /// <see cref="Blazor.AutoCompleteType" />
-        /// </summary>
-        /// <value>
-        /// The type of built-in autocomplete.
-        /// </value>
-        [Parameter]
-        public AutoCompleteType AutoCompleteType { get; set; } = AutoCompleteType.On;
-
-        /// <summary>
-        /// Gets the autocomplete attribute's string value.
-        /// </summary>
-        /// <value>
-        /// <c>off</c> if the AutoComplete parameter is false or the
-        /// AutoCompleteType parameter is "off". When the AutoComplete
-        /// parameter is true, the value is <c>on</c> or, if set, the value of
-        /// AutoCompleteType.</value>
-        public string AutoCompleteAttribute
-        {
-            get => !AutoComplete ? "off" : AutoCompleteType.GetAutoCompleteValue();
-        }
+        public override bool AutoComplete { get; set; } = false;
 
         /// <summary>
         /// Gets or sets a value indicating whether up down buttons are shown.
@@ -434,6 +411,42 @@ namespace Radzen.Blazor
                 await InternalValueChanged(Value);
             }
         }
+
+        bool preventKeyPress = false;
+        async Task OnKeyPress(KeyboardEventArgs args)
+        {
+            var key = args.Code != null ? args.Code : args.Key;
+
+            if (key == "ArrowUp" || key == "ArrowDown")
+            {
+                preventKeyPress = true;
+
+                if (key == "ArrowUp")
+                {
+                    await UpdateValueWithStep(true);
+                }
+                else
+                {
+                    await UpdateValueWithStep(false);
+                }
+            }
+            else
+            {
+                preventKeyPress = false;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the up button aria-label attribute.
+        /// </summary>
+        [Parameter]
+        public string UpAriaLabel { get; set; } = "Up";
+
+        /// <summary>
+        /// Gets or sets the down button aria-label attribute.
+        /// </summary>
+        [Parameter]
+        public string DownAriaLabel { get; set; } = "Down";
 
 #if NET5_0_OR_GREATER
         /// <summary>

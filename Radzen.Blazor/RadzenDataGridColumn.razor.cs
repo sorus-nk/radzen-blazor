@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -122,6 +123,14 @@ namespace Radzen.Blazor
             {
                 Grid.AddColumn(this);
 
+                var canSetFilterPropertyType = Grid.FilterMode == FilterMode.CheckBoxList && FilterTemplate == null;
+
+                if (canSetFilterPropertyType)
+                {
+                    _filterPropertyType = typeof(IEnumerable<object>);
+                    SetFilterOperator(FilterOperator.Contains);
+                }
+
                 var property = GetFilterProperty();
 
                 if (!string.IsNullOrEmpty(property))
@@ -129,7 +138,7 @@ namespace Radzen.Blazor
                     _propertyType = PropertyAccess.GetPropertyType(typeof(TItem), property);
                 }
 
-                if (!string.IsNullOrEmpty(property) && Type == null)
+                if (!string.IsNullOrEmpty(property) && Type == null && !canSetFilterPropertyType)
                 {
                     _filterPropertyType = _propertyType;
                 }
@@ -138,14 +147,14 @@ namespace Radzen.Blazor
                 {
                     _filterPropertyType = Type;
                 }
-                else
+                else if(!string.IsNullOrEmpty(Property))
                 {
                     propertyValueGetter = PropertyAccess.Getter<TItem, object>(Property);
                 }
 
-                if (_filterPropertyType == typeof(string))
+                if (_filterPropertyType == typeof(string) && filterOperator != FilterOperator.Custom && filterOperator == null)
                 {
-                    FilterOperator = FilterOperator.Contains;
+                    SetFilterOperator(FilterOperator.Contains);
                 }
             }
         }
@@ -228,6 +237,13 @@ namespace Radzen.Blazor
         }
 
         /// <summary>
+        /// Gets or sets the header tooltip.
+        /// </summary>
+        /// <value>The header tooltip.</value>
+        [Parameter]
+        public string HeaderTooltip { get; set; }
+
+        /// <summary>
         /// Gets or sets the title.
         /// </summary>
         /// <value>The title.</value>
@@ -308,7 +324,14 @@ namespace Radzen.Blazor
         /// <value>The filter placeholder value.</value>
         [Parameter]
         public string FilterPlaceholder { get; set; }
-        
+
+        /// <summary>
+        /// Gets or sets the custom filter dynamic Linq dictionary.
+        /// </summary>
+        /// <value>The custom filter dynamic Linq dictionary.</value>
+        [Parameter]
+        public string CustomFilterExpression { get; set; }
+
         /// <summary>
         /// Gets the filter placeholder.
         /// </summary>
@@ -317,7 +340,7 @@ namespace Radzen.Blazor
         {
             return FilterPlaceholder ?? string.Empty;
         }
-        
+
         /// <summary>
         /// Gets or sets the second filter value.
         /// </summary>
@@ -762,6 +785,7 @@ namespace Radzen.Blazor
         object secondFilterValue;
         FilterOperator? secondFilterOperator;
         LogicalFilterOperator? logicalFilterOperator;
+        string customFilterExpression;
 
         /// <summary>
         /// Set parameters as an asynchronous operation.
@@ -875,6 +899,32 @@ namespace Radzen.Blazor
                 }
             }
 
+            if (parameters.DidParameterChange(nameof(CustomFilterExpression), CustomFilterExpression))
+            {
+                customFilterExpression = parameters.GetValueOrDefault<string>(nameof(CustomFilterExpression));
+
+                if (CustomFilterExpression != null)
+                {
+                    CustomFilterExpression = customFilterExpression;
+                    Grid.SaveSettings();
+                    if (Grid.IsVirtualizationAllowed())
+                    {
+#if NET5_0_OR_GREATER
+                        if (Grid.virtualize != null)
+                        {
+                            await Grid.virtualize.RefreshDataAsync();
+                        }
+#endif
+                    }
+                    else
+                    {
+                        await Grid.Reload();
+                    }
+
+                    return;
+                }
+            }
+
             if (parameters.DidParameterChange(nameof(FilterOperator), FilterOperator))
             {
                 filterOperator = parameters.GetValueOrDefault<FilterOperator>(nameof(FilterOperator));
@@ -912,6 +962,30 @@ namespace Radzen.Blazor
         public object GetFilterValue()
         {
             return filterValue ?? FilterValue;
+        }
+
+        IEnumerable filterValues;
+        internal IEnumerable GetFilterValues()
+        {
+            if (filterValues == null && Grid.Data != null && !string.IsNullOrEmpty(GetFilterProperty()))
+            {
+                var property = GetFilterProperty();
+                var propertyType = PropertyAccess.GetPropertyType(typeof(TItem), GetFilterProperty());
+
+                if (property.IndexOf(".") != -1)
+                {
+                    property = $"np({property})";
+                }
+
+                if (propertyType == typeof(string))
+                {
+                    property = $@"({property} == null ? """" : {property})";
+                }
+
+                filterValues = Grid.Data.AsQueryable().Select(DynamicLinqCustomTypeProvider.ParsingConfig, property).Distinct().Cast(propertyType ?? typeof(object));
+            }
+
+            return filterValues;
         }
 
         /// <summary>
@@ -957,13 +1031,18 @@ namespace Radzen.Blazor
                 value = offset;
             }
 
+            if (PropertyAccess.IsEnum(FilterPropertyType) || (PropertyAccess.IsNullableEnum(FilterPropertyType)))
+            {
+                value = value is not null ? (int)value : null;
+            }
+
             if (isFirst)
             {
-                filterValue = value;
+                filterValue = CanSetCurrentValue(value) ? value : null;
             }
             else
             {
-                secondFilterValue = value;
+                secondFilterValue = CanSetCurrentValue(value, false) ? value : null;
             }
         }
 
@@ -979,12 +1058,58 @@ namespace Radzen.Blazor
             await Grid.FirstPage(true);
         }
 
-        internal bool CanSetFilterValue()
+        internal bool CanSetFilterValue(bool isFirst = true)
         {
-            return GetFilterOperator() == FilterOperator.IsNull
-                    || GetFilterOperator() == FilterOperator.IsNotNull
-                    || GetFilterOperator() == FilterOperator.IsEmpty
-                    || GetFilterOperator() == FilterOperator.IsNotEmpty;
+            var fo = isFirst ? GetFilterOperator() : GetSecondFilterOperator();
+            return fo != FilterOperator.IsNull
+                    && fo != FilterOperator.IsNotNull
+                    && fo != FilterOperator.IsEmpty
+                    && fo != FilterOperator.IsNotEmpty;
+        }
+
+        internal bool CanSetCurrentValue(object value, bool isFirst = true)
+        {
+            return CanSetFilterValue(isFirst) ? !string.IsNullOrEmpty(value?.ToString()) : false;
+        }
+
+        internal bool HasCustomFilter()
+        {
+            return GetFilterOperator() == FilterOperator.Custom && GetCustomFilterExpression() != null;
+        }
+
+        internal bool HasActiveFilter()
+        {
+            return GetFilterValue() != null
+            || GetSecondFilterValue() != null
+            || !CanSetFilterValue()
+            || HasCustomFilter();
+        }
+
+        /// <summary>
+        /// Get custom filter linq.
+        /// </summary>
+        public string GetCustomFilterExpression()
+        {
+            return customFilterExpression ?? CustomFilterExpression;
+        }
+
+        /// <summary>
+        /// Set column custom filter linq.
+        /// </summary>
+        public void SetCustomFilterExpression(string value)
+        {
+            customFilterExpression = value;
+        }
+
+        /// <summary>
+        /// Set column custom filter linq and reload grid.
+        /// </summary>
+        /// <param name="value">Filter value.</param>
+        public async Task SetCustomFilterExpressionAsync(string value)
+        {
+            SetCustomFilterExpression(value);
+            Grid.SaveSettings();
+            await Grid.FirstPage(true);
         }
 
         /// <summary>
@@ -1002,7 +1127,7 @@ namespace Radzen.Blazor
             FilterOperator = FilterOperator == FilterOperator.Custom
                 ? FilterOperator.Custom
                 : typeof(System.Collections.IEnumerable).IsAssignableFrom(FilterPropertyType)
-                    ? FilterOperator.Contains
+                    ? !string.IsNullOrEmpty(FilterProperty) && FilterProperty != Property ? FilterOperator.In : FilterOperator.Contains
                     : default(FilterOperator);
             SecondFilterOperator = default(FilterOperator);
             LogicalFilterOperator = default(LogicalFilterOperator);
@@ -1117,7 +1242,7 @@ namespace Radzen.Blazor
                 var isStringOperator = o == FilterOperator.Contains || o == FilterOperator.DoesNotContain
                     || o == FilterOperator.StartsWith || o == FilterOperator.EndsWith || o == FilterOperator.IsEmpty || o == FilterOperator.IsNotEmpty;
 
-                if ((FilterPropertyType == typeof(string) || !QueryableExtension.IsEnumerable(FilterPropertyType)) && 
+                if ((FilterPropertyType == typeof(string) || !QueryableExtension.IsEnumerable(FilterPropertyType)) &&
                     (o == FilterOperator.In || o == FilterOperator.NotIn)) return false;
 
                 return FilterPropertyType == typeof(string) || QueryableExtension.IsEnumerable(FilterPropertyType) ? isStringOperator
@@ -1210,6 +1335,12 @@ namespace Radzen.Blazor
         /// </summary>
         public virtual bool ShowTimeForDateTimeFilter()
         {
+#if NET6_0_OR_GREATER
+            if (FilterPropertyType == typeof(DateOnly))
+            {
+                return false;
+            }
+#endif
             return true;
         }
 

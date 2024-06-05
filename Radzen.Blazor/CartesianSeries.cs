@@ -5,8 +5,6 @@ using System.Linq;
 using System.Linq.Dynamic.Core;
 using Radzen.Blazor.Rendering;
 using System.Threading.Tasks;
-using System.Collections;
-using Microsoft.AspNetCore.Components.Rendering;
 
 namespace Radzen.Blazor
 {
@@ -92,6 +90,12 @@ namespace Radzen.Blazor
                 throw new ArgumentException($"Property {propertyName} does not exist");
             }
 
+#if NET6_0_OR_GREATER
+            if(PropertyAccess.IsDateOnly(property))
+            {
+                return false;
+            }
+#endif
             return PropertyAccess.IsDate(property);
         }
 
@@ -404,7 +408,7 @@ namespace Radzen.Blazor
 
                     if (IsDate(CategoryProperty) || IsNumeric(CategoryProperty))
                     {
-                        Items = Items.AsQueryable().OrderBy(CategoryProperty).ToList();
+                        Items = Items.AsQueryable().OrderBy(DynamicLinqCustomTypeProvider.ParsingConfig, CategoryProperty).ToList();
                     }
                 }
 
@@ -563,13 +567,13 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         public double GetMean()
         {
-            return Data.Select(e => Value(e)).Average();
+            return Data.Select(e => Value(e)).DefaultIfEmpty(double.NaN).Average();
         }
 
         /// <inheritdoc />
         public double GetMode()
         {
-            return Data.GroupBy(e => Value(e)).Select(g => new { Value = g.Key, Count = g.Count() }).OrderByDescending(e => e.Count).FirstOrDefault().Value;
+            return Data.Any() ? Data.GroupBy(e => Value(e)).Select(g => new { Value = g.Key, Count = g.Count() }).OrderByDescending(e => e.Count).FirstOrDefault().Value : double.NaN;
         }
 
         /// <summary>
@@ -577,35 +581,38 @@ namespace Radzen.Blazor
         /// </summary>
         public (double a, double b) GetTrend()
         {
-            double a, b;
+            double a = double.NaN, b = double.NaN;
 
-            Func<TItem, double> X;
-            Func<TItem, double> Y;
-            if (Chart.ShouldInvertAxes())
+            if (Data.Any())
             {
-                X = e => Chart.CategoryScale.Scale(Value(e));
-                Y = e => Chart.ValueScale.Scale(Category(Chart.ValueScale)(e));
-            }
-            else
-            {
-                X = e => Chart.CategoryScale.Scale(Category(Chart.CategoryScale)(e));
-                Y = e => Chart.ValueScale.Scale(Value(e));
-            }
+                Func<TItem, double> X;
+                Func<TItem, double> Y;
+                if (Chart.ShouldInvertAxes())
+                {
+                    X = e => Chart.CategoryScale.Scale(Value(e));
+                    Y = e => Chart.ValueScale.Scale(Category(Chart.ValueScale)(e));
+                }
+                else
+                {
+                    X = e => Chart.CategoryScale.Scale(Category(Chart.CategoryScale)(e));
+                    Y = e => Chart.ValueScale.Scale(Value(e));
+                }
 
-            var avgX = Data.Select(e => X(e)).Average();
-            var avgY = Data.Select(e => Y(e)).Average();
-            var sumXY = Data.Sum(e => (X(e) - avgX) * (Y(e) - avgY));
-            if (Chart.ShouldInvertAxes())
-            {
-                var sumYSq = Data.Sum(e => (Y(e) - avgY) * (Y(e) - avgY));
-                b = sumXY / sumYSq;
-                a = avgX - b * avgY;
-            }
-            else
-            {
-                var sumXSq = Data.Sum(e => (X(e) - avgX) * (X(e) - avgX));
-                b = sumXY / sumXSq;
-                a = avgY - b * avgX;
+                var avgX = Data.Select(e => X(e)).Average();
+                var avgY = Data.Select(e => Y(e)).Average();
+                var sumXY = Data.Sum(e => (X(e) - avgX) * (Y(e) - avgY));
+                if (Chart.ShouldInvertAxes())
+                {
+                    var sumYSq = Data.Sum(e => (Y(e) - avgY) * (Y(e) - avgY));
+                    b = sumXY / sumYSq;
+                    a = avgX - b * avgY;
+                }
+                else
+                {
+                    var sumXSq = Data.Sum(e => (X(e) - avgX) * (X(e) - avgX));
+                    b = sumXY / sumXSq;
+                    a = avgY - b * avgX;
+                }
             }
 
             return (a, b);

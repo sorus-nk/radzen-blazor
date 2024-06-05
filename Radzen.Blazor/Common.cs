@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Radzen.Blazor;
+using Radzen.Blazor.Rendering;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Radzen
@@ -295,6 +297,80 @@ namespace Radzen
     }
 
     /// <summary>
+    /// SecurityCodeType enum
+    /// </summary>
+    public enum SecurityCodeType
+    {
+        /// <summary>
+        /// January.
+        /// </summary>
+        String = 0,
+        /// <summary>
+        /// February
+        /// </summary>
+        Numeric = 1,
+        /// <summary>
+        /// March
+        /// </summary>
+        Password = 2
+    }
+
+    /// <summary>
+    /// Month enum
+    /// </summary>
+    public enum Month
+    {
+        /// <summary>
+        /// January.
+        /// </summary>
+        January = 0,
+        /// <summary>
+        /// February
+        /// </summary>
+        February = 1,
+        /// <summary>
+        /// March
+        /// </summary>
+        March = 2,
+        /// <summary>
+        /// April
+        /// </summary>
+        April = 3,
+        /// <summary>
+        /// May
+        /// </summary>
+        May = 4,
+        /// <summary>
+        /// June
+        /// </summary>
+        June = 5,
+        /// <summary>
+        /// July
+        /// </summary>
+        July = 6,
+        /// <summary>
+        /// August
+        /// </summary>
+        August = 7,
+        /// <summary>
+        /// September
+        /// </summary>
+        September = 8,
+        /// <summary>
+        /// October
+        /// </summary>
+        October = 9,
+        /// <summary>
+        /// November
+        /// </summary>
+        November = 10,
+        /// <summary>
+        /// December
+        /// </summary>
+        December = 11,
+    }
+
+    /// <summary>
     /// Html editor mode (Rendered or Raw). Also used for toolbar buttons to enable/disable according to mode.
     /// </summary>
     [Flags]
@@ -388,6 +464,11 @@ namespace Radzen
         /// LogicalFilterOperator.
         /// </summary>
         public LogicalFilterOperator LogicalFilterOperator { get; set; }
+
+        /// <summary>
+        /// CustomFilterExpression.
+        /// </summary>
+        public string CustomFilterExpression { get; set; }
     }
 #if NET7_0_OR_GREATER
 #else
@@ -422,6 +503,112 @@ namespace Radzen
         /// Refreshes this instance.
         /// </summary>
         void Refresh();
+    }
+
+    /// <summary>
+    /// Supplies information about RadzenDropZoneContainer CanDrop function and RadzenDropZone Drop event.
+    /// </summary>
+    public class RadzenDropZoneItemEventArgs<TItem>
+    {
+        /// <summary>
+        /// Gets the dragged item zone.
+        /// </summary>
+        public RadzenDropZone<TItem> FromZone { get; internal set; }
+
+        /// <summary>
+        /// Gets the drop zone.
+        /// </summary>
+        public RadzenDropZone<TItem> ToZone { get; internal set; }
+
+        /// <summary>
+        /// Gets the dragged item.
+        /// </summary>
+        public TItem Item { get; internal set; }
+
+        /// <summary>
+        /// Gets the dropped item.
+        /// </summary>
+        public TItem ToItem { get; internal set; }
+    }
+
+    /// <summary>
+    /// Supplies information about RadzenDropZoneContainer ItemRender event.
+    /// </summary>
+    public class RadzenDropZoneItemRenderEventArgs<TItem>
+    {
+        /// <summary>
+        /// Gets the drop zone.
+        /// </summary>
+        public RadzenDropZone<TItem> Zone { get; internal set; }
+
+        /// <summary>
+        /// Gets the dragged item.
+        /// </summary>
+        public TItem Item { get; internal set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this item is visible.
+        /// </summary>
+        /// <value><c>true</c> if visible; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool Visible { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the row HTML attributes.
+        /// </summary>
+        public IDictionary<string, object> Attributes { get; private set; } = new Dictionary<string, object>();
+    }
+
+    /// <summary>
+    /// Supplies information about RadzenDropDown ItemRender event.
+    /// </summary>
+    public class DropDownBaseItemRenderEventArgs<TValue>
+    {
+        /// <summary>
+        /// Gets the data item.
+        /// </summary>
+        public object Item { get; internal set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this item is visible.
+        /// </summary>
+        /// <value><c>true</c> if visible; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool Visible { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this item is visible.
+        /// </summary>
+        /// <value><c>true</c> if visible; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool Disabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the row HTML attributes.
+        /// </summary>
+        public IDictionary<string, object> Attributes { get; private set; } = new Dictionary<string, object>();
+    }
+
+    /// <summary>
+    /// Supplies information about RadzenDropDown ItemRender event.
+    /// </summary>
+    public class DropDownItemRenderEventArgs<TValue> : DropDownBaseItemRenderEventArgs<TValue>
+    {
+        /// <summary>
+        /// Gets the DropDown.
+        /// </summary>
+        public RadzenDropDown<TValue> DropDown { get; internal set; }
+    }
+
+    /// <summary>
+    /// Supplies information about RadzenDropDown ItemRender event.
+    /// </summary>
+    public class ListBoxItemRenderEventArgs<TValue> : DropDownBaseItemRenderEventArgs<TValue>
+    {
+        /// <summary>
+        /// Gets the DropDown.
+        /// </summary>
+        public RadzenListBox<TValue> ListBox { get; internal set; }
     }
 
     /// <summary>
@@ -501,6 +688,22 @@ namespace Radzen
         /// The position which represents the clicked map location.
         /// </summary>
         public GoogleMapPosition Position { get; set; }
+    }
+
+    /// <summary>
+    /// Supplies information about a <see cref="DropableViewBase.AppointmentMove" /> event that is being raised.
+    /// </summary>
+    public class SchedulerAppointmentMoveEventArgs
+    {
+        /// <summary>
+        /// Gets or sets the appointment data.
+        /// </summary>
+        public AppointmentData Appointment { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time span.
+        /// </summary>
+        public TimeSpan TimeSpan { get; set; }
     }
 
     /// <summary>
@@ -671,6 +874,22 @@ namespace Radzen
     }
 
     /// <summary>
+    /// Supplies information about a <see cref="RadzenTree.ItemContextMenu" /> event that is being raised.
+    /// </summary>
+    public class TreeItemContextMenuEventArgs : Microsoft.AspNetCore.Components.Web.MouseEventArgs
+    {
+        /// <summary>
+        /// Gets the tree item text.
+        /// </summary>
+        public string Text { get; internal set; }
+
+        /// <summary>
+        /// Gets the tree item value.
+        /// </summary>
+        public object Value { get; internal set; }
+    }
+
+    /// <summary>
     /// Supplies information about a <see cref="RadzenDataGrid{TItem}.RowClick" /> or <see cref="RadzenDataGrid{TItem}.RowDoubleClick" /> event that is being raised.
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -745,16 +964,92 @@ namespace Radzen
     /// Represents a file which the user selects for upload via <see cref="RadzenUpload" />.
     /// </summary>
     public class FileInfo
+#if NET5_0_OR_GREATER
+        : IBrowserFile
+#endif
     {
+#if NET5_0_OR_GREATER
+        /// <summary>
+        /// Creates FileInfo.
+        /// </summary>
+        public FileInfo()
+        {
+            //
+        }
+
+        IBrowserFile source;
+        /// <summary>
+        /// Creates FileInfo with IBrowserFile as source.
+        /// </summary>
+        public FileInfo(IBrowserFile source)
+        {
+            this.source = source;
+        }
+#endif
+        string _name;
         /// <summary>
         /// Gets the name of the selected file.
         /// </summary>
-        public string Name { get; set; }
+        public string Name
+        {
+            get
+            {
+#if NET5_0_OR_GREATER
+                return _name ?? source.Name;
+#else
+                return _name;
+#endif
+            }
+            set
+            {
+                _name = value;
+            }
+        }
 
+        long _size;
         /// <summary>
         /// Gets the size (in bytes) of the selected file.
         /// </summary>
-        public long Size { get; set; }
+        public long Size
+        {
+            get
+            {
+#if NET5_0_OR_GREATER
+                return _size != default(long) ? _size : source.Size;
+#else
+                return _size;
+#endif
+            }
+            set
+            {
+                _size = value;
+            }
+        }
+
+#if NET5_0_OR_GREATER
+        /// <summary>
+        /// Gets the IBrowserFile.
+        /// </summary>
+        public IBrowserFile Source => source;
+
+        /// <summary>
+        /// Gets the LastModified.
+        /// </summary>
+        public DateTimeOffset LastModified => source.LastModified;
+
+        /// <summary>
+        /// Gets the ContentType.
+        /// </summary>
+        public string ContentType => source.ContentType;
+
+        /// <summary>
+        /// Open read stream.
+        /// </summary>
+        public System.IO.Stream OpenReadStream(long maxAllowedSize = 512000, CancellationToken cancellationToken = default)
+        {
+            return source.OpenReadStream(maxAllowedSize, cancellationToken);
+        }
+#endif
     }
 
     /// <summary>
@@ -1571,7 +1866,11 @@ namespace Radzen
         /// <summary>
         /// The component displays a popup filtering UI and allows you to pick filtering operator and or filter by multiple values.
         /// </summary>
-        Advanced
+        Advanced,
+        /// <summary>
+        /// The component displays a popup filtering UI and allows you to pick multiple values from list of all values.
+        /// </summary>
+        CheckBoxList
     }
 
     /// <summary>
@@ -1669,15 +1968,15 @@ namespace Radzen
         /// </summary>
         DoesNotContain,
         /// <summary>
-        /// Satisfied if the current value is null.
+        /// Satisfied if the current value is in the specified value.
         /// </summary>
         In,
         /// <summary>
-        /// Satisfied if the current value is in the specified value.
+        /// Satisfied if the current value is not in the specified value.
         /// </summary>
         NotIn,
         /// <summary>
-        /// Satisfied if the current value is not in the specified value.
+        /// Satisfied if the current value is null.
         /// </summary>
         IsNull,
         /// <summary>
@@ -2020,7 +2319,7 @@ namespace Radzen
         /// Gets or sets the operator which will compare the property value with <see cref="FilterValue" />.
         /// </summary>
         /// <value>The filter operator.</value>
-        public FilterOperator FilterOperator { get; set; }
+        public FilterOperator? FilterOperator { get; set; }
 
         /// <summary>
         /// Gets or sets the logic used to combine the outcome of filtering by <see cref="FilterValue" />.
@@ -2467,6 +2766,51 @@ namespace Radzen
     }
 
     /// <summary>
+    /// Supplies information about a <see cref="RadzenTree" /> item render event that is being raised.
+    /// </summary>
+    public class TreeItemRenderEventArgs
+    {
+        /// <summary>
+        /// Gets or sets the item HTML attributes.
+        /// </summary>
+        public IDictionary<string, object> Attributes { get; private set; } = new Dictionary<string, object>();
+
+        bool _checkedSet;
+        internal bool CheckedSet()
+        {
+            return _checkedSet;
+        }
+
+        bool? _checked;
+        /// <summary>
+        /// Gets or sets a value indicating whether this item is checked.
+        /// </summary>
+        /// <value><c>true</c> if expanded; otherwise, <c>false</c>.</value>
+        public bool? Checked
+        {
+            get
+            {
+                return _checked;
+            }
+            set
+            {
+                _checkedSet = true;
+                _checked = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets tree item.
+        /// </summary>
+        public object Value { get; internal set; }
+
+        /// <summary>
+        /// Gets child items.
+        /// </summary>
+        public IEnumerable Data { get; internal set; }
+    }
+
+    /// <summary>
     /// Supplies information about a <see cref="RadzenLogin.Login" /> event that is being raised.
     /// </summary>
     public class LoginArgs
@@ -2614,8 +2958,46 @@ namespace Radzen
             {
                 return true;
             }
-
+#if NET6_0_OR_GREATER
+            if (type == typeof(DateOnly))
+            {
+                return true;
+            }
+#endif
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether the specified type is a DateOnly.
+        /// </summary>
+        /// <param name="source">The source.</param>
+        /// <returns><c>true</c> if the specified type is a DateOnly instance or nullable DateOnly; otherwise, <c>false</c>.</returns>
+        public static bool IsDateOnly(Type source)
+        {
+            if (source == null) return false;
+            var type = source.IsGenericType ? source.GetGenericArguments()[0] : source;
+
+#if NET6_0_OR_GREATER
+            if (type == typeof(DateOnly))
+            {
+                return true;
+            }
+#endif
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the specified type is a DateOnly.
+        /// </summary>
+        /// <param name="source">The source.</param>
+        /// <returns><c>true</c> if the specified type is a DateOnly instance or nullable DateOnly; otherwise, <c>false</c>.</returns>
+        public static object DateOnlyFromDateTime(DateTime source)
+        {
+            object result = null;
+#if NET6_0_OR_GREATER
+            result = DateOnly.FromDateTime(source);
+#endif
+            return result;
         }
 
         /// <summary>

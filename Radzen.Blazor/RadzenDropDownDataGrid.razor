@@ -1,7 +1,6 @@
 ﻿@using Radzen
 @using System.Collections
 @using System.Collections.Generic
-@using System.Linq.Dynamic.Core
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
 @typeparam TValue
@@ -10,23 +9,23 @@
 @if (Visible)
 {
     <div @ref="@Element" @attributes="Attributes" class="@GetCssClass()" @onfocus="@((args) => OnFocus(args))"
-         style="@Style" tabindex="@(Disabled ? "-1" : $"{TabIndex}")" id="@GetId()" @onclick="@(args => OpenPopup("ArrowDown", false, true))" @onclick:preventDefault @onclick:stopPropagation 
-         @onkeydown="@((args) => OnKeyPress(args))">
+         style="@Style" tabindex="@(Disabled ? "-1" : $"{TabIndex}")" id="@GetId()" @onclick="@(args => OpenPopup("ArrowDown", false, true))" @onclick:preventDefault @onclick:stopPropagation
+         @onkeydown="@((args) => OnKeyPress(args))" @onkeydown:preventDefault="@preventKeydown">
         <div class="rz-helper-hidden-accessible">
             <input tabindex="-1" disabled="@Disabled" style="width:100%" aria-haspopup="listbox" readonly="" type="text" id="@Name"
-                   name="@Name" aria-label="@(!Multiple && internalValue != null ? PropertyAccess.GetItemOrValueFromProperty(internalValue, TextProperty) : "")" @attributes="InputAttributes"/>
+                   name="@Name" aria-label="@(!Multiple && internalValue != null ? PropertyAccess.GetItemOrValueFromProperty(internalValue, TextProperty) : EmptyAriaLabel)" @attributes="InputAttributes" />
 
         </div>
 
         @if (ValueTemplate != null && selectedItem != null)
         {
-            <span class="rz-dropdown-label rz-inputtext" style="width:100%;">
+            <span class="rz-dropdown-label rz-inputtext" style="width:100%;" @onkeydown:stopPropagation>
                 @ValueTemplate(selectedItem)
             </span>
         }
         else if (Template != null && selectedItem != null)
         {
-            <span class="rz-dropdown-label rz-inputtext" style="width:100%;">
+            <span class="rz-dropdown-label rz-inputtext" style="width:100%;" @onkeydown:stopPropagation>
                 @Template(selectedItem)
             </span>
         }
@@ -39,30 +38,34 @@
         else if ((selectedItems.Count > 0 || SelectedValue is IEnumerable && !(SelectedValue is string)) && Multiple)
         {
             var itemsToUse = SelectedValue is IEnumerable && !(SelectedValue is string) ? ((IEnumerable)SelectedValue).Cast<object>().ToList() : selectedItems;
-            @if (itemsToUse.Count < MaxSelectedLabels && Template == null && Chips)
+            @if (itemsToUse.Count < MaxSelectedLabels && Chips)
             {
                 <div class="rz-dropdown-chips-wrapper">
                     @foreach (var item in itemsToUse)
                     {
                         <div class="rz-chip">
-                            <span class="rz-chip-text">
-                                @if (Template != null)
+                            <span class="rz-chip-text" @onkeydown:stopPropagation>
+                                @if (ValueTemplate != null)
+                                {
+                                    @ValueTemplate(item)
+                                }
+                                else if (Template != null)
                                 {
                                     @Template(item)
                                 }
                                 else
                                 {
-                                    @PropertyAccess.GetItemOrValueFromProperty(item, TextProperty)
+                                    @GetItemOrValueFromProperty(item, TextProperty)
                                 }
-                            </span>  
-                            <button type="button" class="rz-button rz-button-sm rz-button-icon-only rz-light @(Disabled ?"rz-state-disabled":"")" @onclick:preventDefault @onclick:stopPropagation @onclick="() => OnChipRemove(item)"><RadzenIcon Icon="close" /></button>
+                            </span>
+                            <button tabindex="0" title="@(RemoveChipTitle + " " + GetItemOrValueFromProperty(item, TextProperty))" type="button" class="rz-button rz-button-sm rz-button-icon-only rz-light @(Disabled ?"rz-state-disabled":"")" @onclick:preventDefault @onclick:stopPropagation @onclick="() => OnChipRemove(item)"><RadzenIcon Icon="close" /></button>
                         </div>
                     }
                 </div>
             }
             else
             {
-                <label class="rz-dropdown-label rz-inputtext" style="width:100%;">
+                <label class="rz-dropdown-label rz-inputtext" style="width:100%;" @onkeydown:stopPropagation>
                     @if (itemsToUse.Count < MaxSelectedLabels)
                     {
                         @if (Template == null)
@@ -110,30 +113,37 @@
 
         <div id="@PopupID" class="@(Multiple ? "rz-multiselect-panel" : "rz-dropdown-panel")"
              style="display:none;min-width:400px;padding:0px;">
-            <div class="rz-lookup-panel">
-                @if (AllowFiltering)
+            <div class="rz-lookup-panel" @onkeydown="@CloseOnEscape">
+                @if (AllowFiltering || HeaderTemplate != null)
                 {
+                    @if (HeaderTemplate != null)
+                    {
+                        @HeaderTemplate
+                    }
+                    else
+                    {
                     <div class="rz-lookup-search">
-                        <input aria-label="@SearchAriaLabel" class="rz-lookup-search-input" id="@SearchID" @ref="@search" tabindex="-1" placeholder="@SearchTextPlaceholder"
+                        <input aria-label="@SearchAriaLabel" class="rz-lookup-search-input" id="@SearchID" @ref="@search" tabindex="0" placeholder="@SearchTextPlaceholder"
                                @onchange="@((args) => OnFilter(args))" @onkeydown="@((args) => OnFilterKeyPress(args))" value="@searchText" style="@(ShowSearch ? "" : "margin-right:0px;")"
                         @oninput=@(args => { searchText = $"{args.Value}"; SearchTextChanged.InvokeAsync(searchText);}) />
                         @if (ShowSearch)
                         {
-                            <button class="rz-button rz-button-md rz-button-icon-only rz-primary" type="button" title="" @onclick="@((args) => OnFilter(new ChangeEventArgs()))">
+                            <button tabindex="0" class="rz-button rz-button-md rz-button-icon-only rz-primary" type="button" title="@SearchTextPlaceholder" @onclick="@((args) => OnFilter(new ChangeEventArgs()))">
                                 <i class="rz-button-icon-left rzi">search</i>
                             </button>
                         }
                         @if (ShowAdd)
                         {
-                            <button class="rz-button rz-button-md rz-button-icon-only rz-primary" style="margin-left: 5px" type="button" title="" @onclick="@OnAddClick">
+                            <button tabindex="0" class="rz-button rz-button-md rz-button-icon-only rz-primary" style="margin-left: 5px" type="button" title="@AddAriaLabel" @onclick="@OnAddClick">
                                 <i class="rz-button-icon-left rzi">add</i>
                             </button>
                         }
                     </div>
+                    }
                 }
                 @if (Template != null)
                 {
-                    <RadzenDataGrid AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
+                    <RadzenDataGrid EmptyTemplate=@EmptyTemplate AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
                                     TItem="object" CellRender="@OnCellRender" RowRender="@OnRowRender" ShowPagingSummary="@ShowPagingSummary" PagingSummaryFormat="@PagingSummaryFormat" PageSize="@PageSize" PageNumbersCount="@PageNumbersCount" AllowPaging="@(!IsVirtualizationAllowed())" AllowSorting="@AllowSorting" RowSelect="@OnRowSelect" Style="@(IsVirtualizationAllowed() ? "height:285px" : "")" Density="@Density" IsLoading="@IsLoading" FirstPageTitle="@FirstPageTitle" FirstPageAriaLabel="@FirstPageAriaLabel" PrevPageAriaLabel="@PrevPageAriaLabel" PrevPageTitle="@PrevPageTitle" NextPageAriaLabel="@NextPageAriaLabel" NextPageTitle="@NextPageTitle" LastPageAriaLabel="@LastPageAriaLabel" LastPageTitle="@LastPageTitle" PageAriaLabelFormat="@PageAriaLabelFormat" PageTitleFormat="@PageTitleFormat">
                         <Columns>
                             <RadzenDataGridColumn TItem="object" Property="@TextProperty" Title="@TextProperty" Type="typeof(string)">
@@ -142,16 +152,13 @@
                                 </Template>
                             </RadzenDataGridColumn>
                         </Columns>
-                        <EmptyTemplate>
-                            @EmptyTemplate
-                        </EmptyTemplate>
                     </RadzenDataGrid>
                 }
                 else
                 {
                     if (!string.IsNullOrEmpty(TextProperty) || Columns != null)
                     {
-                        <RadzenDataGrid AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" EmptyText="@EmptyText" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
+                        <RadzenDataGrid EmptyTemplate=@EmptyTemplate AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" EmptyText="@EmptyText" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
                                         TItem="object" CellRender="@OnCellRender" RowRender="@OnRowRender" ShowPagingSummary="@ShowPagingSummary" PagingSummaryFormat="@PagingSummaryFormat" PageSize="@PageSize" PageNumbersCount="@PageNumbersCount" AllowPaging="@(!IsVirtualizationAllowed())" AllowSorting="@AllowSorting" RowSelect="@OnRowSelect" Style="@(IsVirtualizationAllowed() ? "height:285px" : "")" Density="@Density" IsLoading="@IsLoading" FirstPageTitle="@FirstPageTitle" FirstPageAriaLabel="@FirstPageAriaLabel" PrevPageAriaLabel="@PrevPageAriaLabel" PrevPageTitle="@PrevPageTitle" NextPageAriaLabel="@NextPageAriaLabel" NextPageTitle="@NextPageTitle" LastPageAriaLabel="@LastPageAriaLabel" LastPageTitle="@LastPageTitle" PageAriaLabelFormat="@PageAriaLabelFormat" PageTitleFormat="@PageTitleFormat">
                             <Columns>
                                 @if (Columns != null)
@@ -163,14 +170,11 @@
                                     <RadzenDataGridColumn TItem="object" Property="@TextProperty" Title="@TextProperty" Type="typeof(string)" />
                                 }
                             </Columns>
-                            <EmptyTemplate>
-                                @EmptyTemplate
-                            </EmptyTemplate>
                         </RadzenDataGrid>
                     }
                     else
                     {
-                        <RadzenDataGrid AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" EmptyText="@EmptyText" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
+                        <RadzenDataGrid EmptyTemplate=@EmptyTemplate AllowVirtualization="@IsVirtualizationAllowed()" VirtualizationOverscanCount="@GetVirtualizationOverscanCount()" AllowRowSelectOnRowClick="@AllowRowSelectOnRowClick" PagerHorizontalAlign="@PagerHorizontalAlign" PagerAlwaysVisible="@PagerAlwaysVisible" Responsive="@Responsive" AllowColumnResize="@AllowColumnResize" ColumnWidth="@ColumnWidth" EmptyText="@EmptyText" @ref="grid" Data="@(LoadData.HasDelegate ? (Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()) : pagedData)" Count="@(LoadData.HasDelegate ? Count : count)" LoadData="@OnLoadData"
                                         TItem="object" CellRender="@OnCellRender" RowRender="@OnRowRender" ShowPagingSummary="@ShowPagingSummary" PagingSummaryFormat="@PagingSummaryFormat" PageSize="@PageSize" PageNumbersCount="@PageNumbersCount" AllowPaging="@(!IsVirtualizationAllowed())" AllowSorting="@AllowSorting" RowSelect="@OnRowSelect" Style="@(IsVirtualizationAllowed() ? "height:285px" : "")" Density="@Density" IsLoading="@IsLoading" FirstPageTitle="@FirstPageTitle" FirstPageAriaLabel="@FirstPageAriaLabel" PrevPageAriaLabel="@PrevPageAriaLabel" PrevPageTitle="@PrevPageTitle" NextPageAriaLabel="@NextPageAriaLabel" NextPageTitle="@NextPageTitle" LastPageAriaLabel="@LastPageAriaLabel" LastPageTitle="@LastPageTitle" PageAriaLabelFormat="@PageAriaLabelFormat" PageTitleFormat="@PageTitleFormat">
                             <Columns>
                                 <RadzenDataGridColumn TItem="object" Property="it" Title="Item" Type="typeof(string)">
@@ -179,9 +183,6 @@
                                     </Template>
                                 </RadzenDataGridColumn>
                             </Columns>
-                            <EmptyTemplate>
-                                @EmptyTemplate
-                            </EmptyTemplate>
                         </RadzenDataGrid>
                     }
                 }

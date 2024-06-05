@@ -23,9 +23,11 @@
         return @<CascadingValue Value=@Scheduler>
                     <YearTimelineView StartDate=@StartDate
                         EndDate=@EndDate
+                        StartMonth=@StartMonth
                         MaxAppointmentsInSlot=@maxAppointmentsInSlot
                         MoreText=@MoreText
-                        Appointments=@appointments />
+                        Appointments=@appointments
+                        AppointmentMove=OnAppointmentMove />
                 </CascadingValue>;
     }
 }

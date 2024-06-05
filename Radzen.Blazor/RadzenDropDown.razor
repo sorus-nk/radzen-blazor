@@ -1,6 +1,5 @@
 ﻿@using Radzen
 @using System.Linq
-@using System.Linq.Dynamic.Core
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Rendering
@@ -14,18 +13,18 @@
         <div class="rz-helper-hidden-accessible">
             <input disabled="@Disabled" aria-haspopup="listbox" readonly="" type="text" tabindex="-1"
                    name="@Name" value="@(internalValue != null ? internalValue : "")" id="@Name"
-                   aria-label="@(!Multiple && internalValue != null ? internalValue : "")" @attributes="InputAttributes"/>
+                   aria-label="@(!Multiple && internalValue != null ? internalValue : EmptyAriaLabel)" @attributes="InputAttributes"/>
         </div>
 
         @if (ValueTemplate != null && selectedItem != null)
         {
-            <span class="rz-dropdown-label rz-inputtext" style="width:100%;">
+            <span class="rz-dropdown-label rz-inputtext" style="width:100%;" @onkeydown:stopPropagation>
                 @ValueTemplate(selectedItem)
             </span>
         }
         else if (Template != null && selectedItem != null)
         {
-            <span class="rz-dropdown-label rz-inputtext">
+            <span class="rz-dropdown-label rz-inputtext" @onkeydown:stopPropagation>
                 @Template(selectedItem)
             </span>
         }
@@ -41,8 +40,12 @@
                 @foreach (var item in selectedItems)
                 {
                     <div class="rz-chip">
-                        <span class="rz-chip-text">
-                            @if(Template != null)
+                        <span class="rz-chip-text" @onkeydown:stopPropagation>
+                            @if(ValueTemplate != null)
+                            {
+                                @ValueTemplate(item)
+                            }
+                            else if(Template != null)
                             {
                                 @Template(item)
                             }
@@ -51,17 +54,17 @@
                                 @GetItemOrValueFromProperty(item, TextProperty)
                             }
                         </span>
-                        <button type=button class="rz-button rz-button-sm rz-button-icon-only rz-light @(Disabled ?"rz-state-disabled":"")" @onclick:preventDefault @onclick:stopPropagation @onclick="() => OnChipRemove(item)"><RadzenIcon Icon="close" /></button>
+                        <button tabindex="0" title="@(RemoveChipTitle + " " + GetItemOrValueFromProperty(item, TextProperty))" type=button class="rz-button rz-button-sm rz-button-icon-only rz-light @(Disabled ?"rz-state-disabled":"")" @onclick:preventDefault @onclick:stopPropagation @onclick="() => OnChipRemove(item)"><RadzenIcon Icon="close" /></button>
                     </div>
                 }
             </div>
         }
         else if (selectedItems.Count > 0)
         {
-            <span class="rz-dropdown-label rz-inputtext">
+            <span class="rz-dropdown-label rz-inputtext" @onkeydown:stopPropagation>
                 @if (selectedItems.Count < MaxSelectedLabels)
                 {
-                    @if (Template == null)
+                    @if (Template == null && ValueTemplate == null)
                     {
                         @(string.Join(Separator, selectedItems.Select(i => GetItemOrValueFromProperty(i, TextProperty))))
                     }
@@ -71,7 +74,15 @@
 
                         foreach (var item in selectedItems)
                         {
-                            @Template(item)@(item != last ? Separator : "")
+                            if (ValueTemplate != null)
+                            {
+                                @ValueTemplate(item)
+                            }
+                            else if (Template != null)
+                            {
+                                @Template(item)
+                            }
+                            @(item != last ? Separator : "")
                         }
                     }
                 }
@@ -98,21 +109,34 @@
             <span class="rz-dropdown-trigger-icon  rzi rzi-chevron-down"></span>
         </div>
 
-        <div id="@PopupID" class="@(Multiple ? "rz-multiselect-panel    " : "rz-dropdown-panel    ")"
+        <div id="@PopupID" class="@(Multiple ? "rz-multiselect-panel" : "rz-dropdown-panel")"
              style="display:none; box-sizing: border-box">
-            @if (AllowFiltering && !Multiple)
+            @if(!Multiple && (AllowFiltering || HeaderTemplate != null))
             {
+                @if (HeaderTemplate != null)
+                {
+                    @HeaderTemplate
+                }
+                else
+                {
                 <div class="rz-dropdown-filter-container">
-                    <input aria-label="@SearchAriaLabel" id="@SearchID" @ref="@search" tabindex="@(Disabled ? "-1" : $"{TabIndex}")" placeholder="@FilterPlaceholder" class="rz-dropdown-filter rz-inputtext   " autocomplete="off" type="text"
+                    <input aria-label="@SearchAriaLabel" id="@SearchID" @ref="@search" tabindex="@(Disabled ? "-1" : $"{TabIndex}")" placeholder="@FilterPlaceholder" class="rz-dropdown-filter rz-inputtext" autocomplete="off" aria-autocomplete="none" type="text"
                            @onchange="@((ChangeEventArgs args) => OnFilter(args))" @onkeydown="@((args) => OnFilterKeyPress(args))" value="@searchText"
                             @oninput=@(args => { searchText = $"{args.Value}"; SearchTextChanged.InvokeAsync(searchText);}) />
                     <span class="rz-dropdown-filter-icon rzi rzi-search"></span>
                 </div>
+                }
             }
-            @if (Multiple && (AllowSelectAll || AllowFiltering))
+            @if (Multiple && (AllowSelectAll || AllowFiltering || HeaderTemplate != null))
             {
+                @if (HeaderTemplate != null)
+                {
+                    @HeaderTemplate
+                }
+                else
+                {
                 <div class="rz-multiselect-header rz-helper-clearfix" @onclick:preventDefault>
-                    @if(AllowSelectAll)
+                    @if(AllowSelectAll && Data != null && Data.Cast<object>().Any())
                     {
                     <div class="rz-chkbox" title="@(!AllowFiltering ? "" : SelectAllText)" @onclick="@SelectAll">
                         <div class="rz-helper-hidden-accessible">
@@ -123,7 +147,7 @@
                         </div>
                     </div>
                     }
-                    @if (AllowSelectAll && !AllowFiltering && !string.IsNullOrEmpty(SelectAllText))
+                    @if (AllowSelectAll && !AllowFiltering && !string.IsNullOrEmpty(SelectAllText) && Data != null && Data.Cast<object>().Any())
                     {
                         <span style="cursor:pointer" @onclick="@SelectAll">@SelectAllText</span>
                     }
@@ -137,10 +161,11 @@
                             <span class="rz-multiselect-filter-icon rzi rzi-search"></span>
                         </div>
                     }
-                    <a class="rz-multiselect-close " @onclick="@ClearAll" @onclick:stopPropagation="true">
+                    <a id="@(GetId() + "clear")" class="rz-multiselect-close " @onclick="@ClearAll" @onclick:stopPropagation="true">
                         <span class="rzi rzi-times"></span>
                     </a>
                 </div>
+                }
             }
             <div class="@(Multiple ? "rz-multiselect-items-wrapper" : "rz-dropdown-items-wrapper")" style="@PopupStyle">
                 @if (Data != null && Data.Cast<object>().Any())
@@ -150,7 +175,7 @@
                         {
                             @RenderItems()
                         }
-                    </ul>   
+                    </ul>
                 }
                 else
                 {

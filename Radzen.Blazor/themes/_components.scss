@@ -7,6 +7,7 @@
 @import 'components/blazor/button';
 @import 'components/blazor/badge';
 @import 'components/blazor/chip';
+@import 'components/blazor/dropzone';
 @import 'components/blazor/input';
 @import 'components/blazor/header';
 @import 'components/blazor/footer';
@@ -35,6 +36,7 @@
 @import 'components/blazor/splitbutton';
 @import 'components/blazor/slider';
 @import 'components/blazor/rating';
+@import 'components/blazor/security-code';
 @import 'components/blazor/selectbar';
 @import 'components/blazor/datepicker';
 @import 'components/blazor/numeric';
@@ -70,3 +72,4 @@
 @import 'components/blazor/stack';
 @import 'components/blazor/form-field';
 @import 'components/blazor/timeline';
+@import 'components/blazor/picklist';

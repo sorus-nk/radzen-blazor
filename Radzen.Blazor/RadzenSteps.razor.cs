@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
-using System;
+using Microsoft.AspNetCore.Components.Web;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -407,11 +407,21 @@ namespace Radzen.Blazor
             await base.SetParametersAsync(parameters);
         }
 
-        /// <inheritdoc />
-        public override void Dispose()
+        bool preventKeyPress = false;
+        async Task OnKeyPress(KeyboardEventArgs args, Task task)
         {
-            base.Dispose();
-            steps.Clear();
+            var key = args.Code != null ? args.Code : args.Key;
+
+            if (key == "Space" || key == "Enter")
+            {
+                preventKeyPress = true;
+
+                await task;
+            }
+            else
+            {
+                preventKeyPress = false;
+            }
         }
     }
 }

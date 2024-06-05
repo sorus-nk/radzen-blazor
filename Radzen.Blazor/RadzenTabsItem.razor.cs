@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Radzen.Blazor.Rendering;
 using System;
 using System.Collections.Generic;
@@ -80,6 +81,7 @@ namespace Radzen.Blazor
         /// <value>The class list.</value>
         ClassList ClassList => ClassList.Create()
                                         .Add("rz-tabview-selected", IsSelected)
+                                        .Add("rz-state-focused", Tabs.IsFocused(this))
                                         .AddDisabled(Disabled)
                                         .Add(Attributes);
 
@@ -130,18 +132,23 @@ namespace Radzen.Blazor
             await Tabs.AddTab(this);
         }
 
-        async Task OnClick()
+        internal async Task OnClick()
         {
             if (!Disabled)
             {
-                if (Tabs.RenderMode == TabRenderMode.Server)
-                {
-                    await Tabs.SelectTab(this, true);
-                }
-                else
-                {
-                    await Tabs.SelectTabOnClient(this);
-                }
+                await SelectTab(this);
+            }
+        }
+
+        async Task SelectTab(RadzenTabsItem item)
+        {
+            if (Tabs.RenderMode == TabRenderMode.Server)
+            {
+                await Tabs.SelectTab(this, true);
+            }
+            else
+            {
+                await Tabs.SelectTabOnClient(this);
             }
         }
 
@@ -163,15 +170,10 @@ namespace Radzen.Blazor
 
             if (visibleChanged && IsSelected)
             {
-                Tabs?.SelectTab(this);
-            }
-
-            if (visibleChanged && Tabs?.RenderMode == TabRenderMode.Client)
-            {
                 var firstTab = Tabs?.FirstVisibleTab();
                 if (firstTab != null)
                 {
-                    await Tabs.SelectTabOnClient(firstTab);
+                    await SelectTab(firstTab);
                 }
             }
         }

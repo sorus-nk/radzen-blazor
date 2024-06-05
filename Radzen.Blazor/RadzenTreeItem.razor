@@ -1,7 +1,9 @@
 @using Radzen
 @using Radzen.Blazor.Rendering
 @implements IDisposable
-<li class="rz-treenode" @attributes="Attributes">
+@{var itemArgs = Tree?.ItemAttributes(this); }
+<li class="rz-treenode" @attributes="@(itemArgs.Item1.Attributes.Any() ? itemArgs.Item1.Attributes : Attributes)" 
+    @oncontextmenu="OnContextMenu" @oncontextmenu:preventDefault="@Tree.ItemContextMenu.HasDelegate" @oncontextmenu:stopPropagation>
     <div class=@ContentClassList @onclick="@Select">
         @if (ChildContent != null || HasChildren)
         {
@@ -9,11 +11,11 @@
         }
         @if(Tree != null && Tree.AllowCheckBoxes)
         {
-            <RadzenCheckBox Name="@($"{GetHashCode()}")" TValue="bool?" Value="@IsChecked()" Change="@CheckedChange" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", Tree.SelectItemAriaLabel }})" />
+            <RadzenCheckBox TabIndex=-1 Name="@($"{GetHashCode()}")" TValue="bool?" Value="@(itemArgs.Item1.CheckedSet() ? itemArgs.Item1.Checked : IsChecked())" Change="@CheckedChange" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", Tree.SelectItemAriaLabel }})" />
         }
         @if (Template != null)
         {
-            <div class="rz-treenode-label">@Template(this)</div>
+            <div class="rz-treenode-label" @onkeydown:stopPropagation>@Template(this)</div>
         } else
         {
             <span for="@(GetHashCode())" class="rz-treenode-label">@Text</span>
@@ -22,7 +24,7 @@
     @if (ChildContent != null && expanded)
     {
     <CascadingValue Value=this>
-    <ul class="rz-treenode-children" style=@(clientExpanded ? "" : "display:none;")>
+    <ul class="rz-treenode-children" style=@(clientExpanded ? "" : "display:none;") @onkeydown:stopPropagation>
         @ChildContent
     </ul>
     </CascadingValue>

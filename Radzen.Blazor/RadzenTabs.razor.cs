@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -156,6 +158,8 @@ namespace Radzen.Blazor
         {
             selectedIndex = IndexOf(tab);
 
+            SetFocusedIndex();
+
             if (raiseChange)
             {
                 await Change.InvokeAsync(selectedIndex);
@@ -203,6 +207,14 @@ namespace Radzen.Blazor
             base.OnInitialized();
         }
 
+        void SetFocusedIndex()
+        {
+            if (focusedIndex != selectedIndex)
+            {
+                focusedIndex = selectedIndex;
+            }
+        }
+
         /// <inheritdoc />
         public override async Task SetParametersAsync(ParameterView parameters)
         {
@@ -211,14 +223,19 @@ namespace Radzen.Blazor
                 selectedIndex = parameters.GetValueOrDefault<int>(nameof(SelectedIndex));
             }
 
+            SetFocusedIndex();
+
             await base.SetParametersAsync(parameters);
         }
 
+
+        int previousSelectedIndex;
         /// <inheritdoc />
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (RenderMode == TabRenderMode.Client)
+            if (RenderMode == TabRenderMode.Client && previousSelectedIndex != selectedIndex)
             {
+                previousSelectedIndex = selectedIndex;
                 await JSRuntime.InvokeVoidAsync("Radzen.selectTab", $"{GetId()}-tabpanel-{selectedIndex}", selectedIndex);
             }
 
@@ -240,6 +257,8 @@ namespace Radzen.Blazor
             if (index != selectedIndex)
             {
                 selectedIndex = index;
+                previousSelectedIndex = selectedIndex;
+                SetFocusedIndex();
 
                 await JSRuntime.InvokeVoidAsync("Radzen.selectTab", $"{GetId()}-tabpanel-{selectedIndex}", selectedIndex);
 
@@ -253,6 +272,43 @@ namespace Radzen.Blazor
         internal RadzenTabsItem FirstVisibleTab()
         {
             return tabs.Where(t => t.Visible).FirstOrDefault();
+        }
+
+        internal int focusedIndex = -1;
+        bool preventKeyPress = true;
+        async Task OnKeyPress(KeyboardEventArgs args)
+        {
+            var key = args.Code != null ? args.Code : args.Key;
+
+            if (key == "ArrowLeft" || key == "ArrowRight")
+            {
+                preventKeyPress = true;
+
+                focusedIndex = Math.Clamp(focusedIndex + (key == "ArrowLeft" ? -1 : 1), 0, tabs.Where(t => t.Visible).Count() - 1);
+            }
+            else if (key == "Home" || key == "End")
+            {
+                preventKeyPress = true;
+
+                focusedIndex = key == "Home" ? 0 : tabs.Where(t => t.Visible).Count() - 1;
+            }
+            else if (key == "Space" || key == "Enter")
+            {
+                preventKeyPress = true;
+
+                if (focusedIndex >= 0 && focusedIndex < tabs.Where(t => t.Visible).Count())
+                {
+                    await tabs.Where(t => t.Visible).ToList()[focusedIndex].OnClick();
+                }
+            }
+            else
+            {
+                preventKeyPress = false;
+            }
+        }
+        internal bool IsFocused(RadzenTabsItem item)
+        {
+            return tabs.Where(t => t.Visible).ToList().IndexOf(item) == focusedIndex && focusedIndex != -1;
         }
     }
 }

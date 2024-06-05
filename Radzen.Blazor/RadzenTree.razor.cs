@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -112,6 +113,31 @@ namespace Radzen.Blazor
         /// </summary>
         [Parameter]
         public EventCallback<TreeEventArgs> Collapse { get; set; }
+
+        /// <summary>
+        /// A callback that will be invoked when item is rendered.
+        /// </summary>
+        [Parameter]
+        public Action<TreeItemRenderEventArgs> ItemRender { get; set; }
+
+        /// <summary>
+        /// Gets or sets the context menu callback.
+        /// </summary>
+        /// <value>The context menu callback.</value>
+        [Parameter]
+        public EventCallback<TreeItemContextMenuEventArgs> ItemContextMenu { get; set; }
+
+        internal Tuple<Radzen.TreeItemRenderEventArgs, IReadOnlyDictionary<string, object>> ItemAttributes(RadzenTreeItem item)
+        {
+            var args = new TreeItemRenderEventArgs() { Data = item.GetAllChildValues(), Value = item.Value };
+
+            if (ItemRender != null)
+            {
+                ItemRender(args);
+            }
+
+            return new Tuple<TreeItemRenderEventArgs, IReadOnlyDictionary<string, object>>(args, new System.Collections.ObjectModel.ReadOnlyDictionary<string, object>(args.Attributes));
+        }
 
         /// <summary>
         /// Gets or sets the child content.
@@ -231,7 +257,9 @@ namespace Radzen.Blazor
                 {
                     if (text == null)
                     {
-                        text = level.Text ?? Getter<string>(data, level.TextProperty);
+                        text = level.Text ?? 
+                            (!string.IsNullOrEmpty(level.TextProperty) ? Getter<string>(data, level.TextProperty) : null) ??
+                            (o => "");
                     }
 
                     RenderTreeItem(builder, data, level.Template, text, level.HasChildren, level.Expanded, level.Selected);
@@ -250,7 +278,7 @@ namespace Radzen.Blazor
                         else
                         {
                             builder.AddAttribute(7, "ChildContent", (RenderFragment)null);
-						}
+                        }
                     }
 
                     builder.CloseComponent();
@@ -383,6 +411,93 @@ namespace Radzen.Blazor
             {
                 Levels.Add(level);
                 StateHasChanged();
+            }
+        }
+
+        internal int focusedIndex = -1;
+
+        bool preventKeyPress = true;
+        async Task OnKeyPress(KeyboardEventArgs args)
+        {
+            var key = args.Code != null ? args.Code : args.Key;
+
+            if (key == "ArrowUp" || key == "ArrowDown")
+            {
+                preventKeyPress = true;
+
+                focusedIndex = Math.Clamp(focusedIndex + (key == "ArrowUp" ? -1 : 1), 0, CurrentItems.Count - 1);
+            }
+            else if (key == "ArrowLeft" || key == "ArrowRight")
+            {
+                preventKeyPress = true;
+
+                if (focusedIndex >= 0 && focusedIndex < CurrentItems.Count)
+                {
+                    var item = CurrentItems[focusedIndex];
+
+                    if (item.ChildContent != null || item.HasChildren)
+                    {
+                        await item.ExpandCollapse(key == "ArrowRight");
+                    }
+                }
+            }
+            else if (key == "Enter" || key == "Space")
+            {
+                preventKeyPress = true;
+
+                if (focusedIndex >= 0 && focusedIndex < CurrentItems.Count)
+                {
+                    await SelectItem(CurrentItems[focusedIndex]);
+
+                    if (AllowCheckBoxes)
+                    {
+                        await CurrentItems[focusedIndex].CheckedChange(!CurrentItems[focusedIndex].IsChecked());
+                    }
+                }
+            }
+            else
+            {
+                preventKeyPress = false;
+            }
+        }
+
+        internal bool IsFocused(RadzenTreeItem item)
+        {
+            return CurrentItems.IndexOf(item) == focusedIndex && focusedIndex != -1;
+        }
+
+        internal void InsertInCurrentItems(int index, RadzenTreeItem item)
+        {
+            if (index <= CurrentItems.Count)
+            {
+                CurrentItems.Insert(index, item);
+            }
+        }
+
+        internal void RemoveFromCurrentItems(int index, int count)
+        {
+            if (index >= 0)
+            {
+                CurrentItems.RemoveRange(index, count);
+            }
+
+            if (focusedIndex > index)
+            {
+                focusedIndex = index;
+            }
+        }
+
+        List<RadzenTreeItem> _currentItems;
+        internal List<RadzenTreeItem> CurrentItems
+        {
+            get
+            {
+                if (_currentItems == null)
+                {
+                    _currentItems = items;
+                }
+
+                return _currentItems;
             }
         }
     }
