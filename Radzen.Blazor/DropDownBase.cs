@@ -17,7 +17,6 @@ namespace Radzen
     /// <typeparam name="T"></typeparam>
     public class DropDownBase<T> : DataBoundFormComponent<T>
     {
-#if NET5_0_OR_GREATER
         /// <summary>
         /// Gets or sets a value that determines how many additional items will be rendered before and after the visible region. This help to reduce the frequency of rendering during scrolling. However, higher values mean that more elements will be present in the page.
         /// </summary>
@@ -78,27 +77,19 @@ namespace Radzen
         /// </summary>
         [Parameter]
         public int PageSize { get; set; } = 5;
-#endif
+
         /// <summary>
         /// Determines whether virtualization is allowed.
         /// </summary>
         /// <returns><c>true</c> if virtualization is allowed; otherwise, <c>false</c>.</returns>
         internal bool IsVirtualizationAllowed()
         {
-#if NET5_0_OR_GREATER
             return AllowVirtualization;
-#else
-            return false;
-#endif
         }
 
         internal int GetVirtualizationOverscanCount()
         {
-#if NET5_0_OR_GREATER
             return VirtualizationOverscanCount;
-#else
-            return 0;
-#endif
         }
 
         /// <summary>
@@ -109,7 +100,6 @@ namespace Radzen
         {
             return new RenderFragment(builder =>
             {
-#if NET5_0_OR_GREATER
                 if (AllowVirtualization)
                 {
                     builder.OpenComponent(0, typeof(Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize<object>));
@@ -138,12 +128,6 @@ namespace Radzen
                         RenderItem(builder, item);
                     }
                 }
-#else
-                foreach (var item in LoadData.HasDelegate ? Data : View)
-                {
-                    RenderItem(builder, item);
-                }
-#endif
             });
         }
 
@@ -297,7 +281,7 @@ namespace Radzen
         /// <summary>
         /// Selects all.
         /// </summary>
-        protected async System.Threading.Tasks.Task SelectAll()
+        protected virtual async System.Threading.Tasks.Task SelectAll()
         {
             if (Disabled)
             {
@@ -522,7 +506,6 @@ namespace Radzen
             return item;
         }
 
-#if NET5_0_OR_GREATER
         /// <inheritdoc/>
         protected override async Task OnDataChanged()
         {
@@ -533,7 +516,6 @@ namespace Radzen
                 await InvokeAsync(Virtualize.RefreshDataAsync);
             }
         }
-#endif
 
         /// <summary>
         /// Gets the popup identifier.
@@ -653,9 +635,7 @@ namespace Radzen
             {
                 if (IsVirtualizationAllowed())
                 {
-#if NET5_0_OR_GREATER
                     items = virtualItems ?? Enumerable.Empty<object>().ToList();
-#endif
                 }
                 else
                 {
@@ -750,10 +730,7 @@ namespace Radzen
             }
             else
             {
-                var filteredItems = GetView(items.AsQueryable(),
-                    args.Key,
-                    StringFilterOperator.StartsWith,
-                    FilterCaseSensitivity.CaseInsensitive)
+                var filteredItems = Query.Where(TextProperty, args.Key, StringFilterOperator.StartsWith, FilterCaseSensitivity.CaseInsensitive)
                     .Cast<object>()
                     .ToList();
 
@@ -761,7 +738,7 @@ namespace Radzen
                 if (previousKey != args.Key)
                 {
                     previousKey = args.Key;
-                    itemIndex = 0;
+                    itemIndex = -1;
                 }
 
                 itemIndex = itemIndex + 1 >= filteredItems.Count() ? 0 : itemIndex + 1;
@@ -811,13 +788,11 @@ namespace Radzen
                 _view = null;
                 if (IsVirtualizationAllowed())
                 {
-#if NET5_0_OR_GREATER
                     if (virtualize != null)
                     {
                         await virtualize.RefreshDataAsync();
                     }
                     await InvokeAsync(() => { StateHasChanged(); });
-#endif
                 }
                 else
                 {
@@ -828,7 +803,6 @@ namespace Radzen
             {
                 if (IsVirtualizationAllowed())
                 {
-#if NET5_0_OR_GREATER
                     if (virtualize != null)
                     {
                         await InvokeAsync(virtualize.RefreshDataAsync);
@@ -838,7 +812,6 @@ namespace Radzen
                         await LoadData.InvokeAsync(await GetLoadDataArgs());
                     }
                     await InvokeAsync(() => { StateHasChanged(); });
-#endif
                 }
                 else
                 {
@@ -888,7 +861,6 @@ namespace Radzen
         /// <returns>LoadDataArgs.</returns>
         internal virtual async System.Threading.Tasks.Task<LoadDataArgs> GetLoadDataArgs()
         {
-#if NET5_0_OR_GREATER
             if (AllowVirtualization)
             {
                 return await Task.FromResult(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, Filter = searchText });
@@ -897,9 +869,6 @@ namespace Radzen
             {
                 return await Task.FromResult(new Radzen.LoadDataArgs() { Filter = searchText });
             }
-#else
-            return await Task.FromResult(new Radzen.LoadDataArgs() { Filter = searchText });
-#endif
         }
 
         /// <summary>
@@ -934,13 +903,12 @@ namespace Radzen
         /// <returns>A Task representing the asynchronous operation.</returns>
         public override async Task SetParametersAsync(ParameterView parameters)
         {
-#if NET5_0_OR_GREATER
             var pageSize = parameters.GetValueOrDefault<int>(nameof(PageSize));
             if (pageSize != default(int))
             {
                 PageSize = pageSize;
             }
-#endif
+
             var selectedItemChanged = parameters.DidParameterChange(nameof(SelectedItem), SelectedItem);
             if (selectedItemChanged)
             {
@@ -1061,71 +1029,6 @@ namespace Radzen
             }
         }
 
-        IQueryable GetView(IQueryable source, string value, StringFilterOperator? op = null, FilterCaseSensitivity? cs = null)
-        {
-            IQueryable result;
-
-            if (!string.IsNullOrEmpty(value))
-            {
-                var ignoreCase = (cs ?? FilterCaseSensitivity) == FilterCaseSensitivity.CaseInsensitive;
-
-                var query = new List<string>();
-
-                if (!string.IsNullOrEmpty(TextProperty))
-                {
-                    query.Add(TextProperty);
-                }
-
-                if (typeof(EnumerableQuery).IsAssignableFrom(source.GetType()))
-                {
-                    query.Add("ToString()");
-                }
-
-                if (ignoreCase)
-                {
-                    query.Add("ToLower()");
-                }
-
-                query.Add($"{Enum.GetName(typeof(StringFilterOperator), op ?? FilterOperator)}(@0)");
-
-                var search = ignoreCase ? value.ToLower() : value;
-
-                if (source.ElementType == typeof(Enum))
-                {
-                    result = source.Cast<Enum>()
-                        .Where((Func<Enum, bool>)(i =>
-                        {
-                            var v = ignoreCase ? i.GetDisplayDescription().ToLower() : i.GetDisplayDescription();
-
-                            if (FilterOperator == StringFilterOperator.Contains)
-                            {
-                                return v.Contains(search);
-                            }
-                            else if (FilterOperator == StringFilterOperator.StartsWith)
-                            {
-                                return v.StartsWith(search);
-                            }
-                            else if (FilterOperator == StringFilterOperator.EndsWith)
-                            {
-                                return v.EndsWith(search);
-                            }
-
-                            return v == search;
-                        })).AsQueryable();
-                }
-                else
-                {
-                    result = source.Where(DynamicLinqCustomTypeProvider.ParsingConfig, string.Join(".", query), search);
-                }
-            }
-            else
-            {
-                result = source;
-            }
-
-            return result;
-        }
-
         /// <summary>
         /// Gets the view.
         /// </summary>
@@ -1136,7 +1039,7 @@ namespace Radzen
             {
                 if (_view == null && Query != null)
                 {
-                    _view = GetView(Query, searchText);
+                    _view = Query.Where(TextProperty, searchText, FilterOperator, FilterCaseSensitivity);
                 }
 
                 return _view;

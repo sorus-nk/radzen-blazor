@@ -120,7 +120,6 @@ namespace Radzen.Blazor
         ElementReference ContentEditable { get; set; }
         RadzenTextArea TextArea { get; set; }
 
-#if NET5_0_OR_GREATER
         /// <summary>
         /// Focuses the editor.
         /// </summary>
@@ -136,7 +135,6 @@ namespace Radzen.Blazor
                 return TextArea.Element.FocusAsync();
             }
         }
-#endif
 
         internal RadzenHtmlEditorCommandState State { get; set; } = new RadzenHtmlEditorCommandState();
 
@@ -192,9 +190,17 @@ namespace Radzen.Blazor
         public async Task ExecuteCommandAsync(string name, string value = null)
         {
             State = await JSRuntime.InvokeAsync<RadzenHtmlEditorCommandState>("Radzen.execCommand", ContentEditable, name, value);
+
             await OnExecuteAsync(name);
-            Html = State.Html;
-            await OnChange();
+
+            if (Html != State.Html)
+            {
+                Html = State.Html;
+
+                htmlChanged = true;
+
+                await OnChange();
+            }
         }
 
         /// <summary>
@@ -213,7 +219,11 @@ namespace Radzen.Blazor
 
         private async Task SourceChanged(string html)
         {
-            Html = html;
+            if (Html != html)
+            {
+                Html = html;
+                htmlChanged = true;
+            }
             await JSRuntime.InvokeVoidAsync("Radzen.innerHTML", ContentEditable, Html);
             await OnChange();
             StateHasChanged();
@@ -221,8 +231,19 @@ namespace Radzen.Blazor
 
         async Task OnChange()
         {
-            await ValueChanged.InvokeAsync(Html);
-            await Change.InvokeAsync(Html);
+            if (htmlChanged)
+            {
+                htmlChanged = false;
+
+                await ValueChanged.InvokeAsync(Html);
+
+                if (FieldIdentifier.FieldName != null)
+                {
+                    EditContext?.NotifyFieldChanged(FieldIdentifier);
+                }
+
+                await Change.InvokeAsync(Html);
+            }
         }
 
         internal async Task OnExecuteAsync(string name)
@@ -259,6 +280,8 @@ namespace Radzen.Blazor
         {
             await OnChange();
         }
+
+        bool htmlChanged = false;
 
         bool visibleChanged = false;
         bool firstRender = true;
@@ -330,7 +353,11 @@ namespace Radzen.Blazor
         [JSInvokable]
         public void OnChange(string html)
         {
-            Html = html;
+            if (Html != html)
+            {
+                Html = html;
+                htmlChanged = true;
+            }
             Input.InvokeAsync(html);
         }
 

@@ -291,6 +291,7 @@ namespace Radzen
             services.AddScoped<NotificationService>();
             services.AddScoped<TooltipService>();
             services.AddScoped<ContextMenuService>();
+            services.AddScoped<ThemeService>();
 
             return services;
         }
@@ -788,23 +789,6 @@ namespace Radzen
     }
 
     /// <summary>
-    /// Supplies information about a <see cref="RadzenGrid{TItem}.Render" /> event that is being raised.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class GridRenderEventArgs<T>
-    {
-        /// <summary>
-        /// Gets the instance of the RadzenGrid component which has rendered.
-        /// </summary>
-        public RadzenGrid<T> Grid { get; internal set; }
-        /// <summary>
-        /// Gets a value indicating whether this is the first time the RadzenGrid has rendered.
-        /// </summary>
-        /// <value><c>true</c> if this is the first time; otherwise, <c>false</c>.</value>
-        public bool FirstRender { get; internal set; }
-    }
-
-    /// <summary>
     /// Supplies information about a <see cref="RadzenDataGrid{TItem}.Render" /> event that is being raised.
     /// </summary>
     /// <typeparam name="T"></typeparam>
@@ -830,18 +814,6 @@ namespace Radzen
         /// Gets or sets the settings.
         /// </summary>
         public DataGridSettings Settings { get; set; }
-    }
-
-    /// <summary>
-    /// Supplies information about a <see cref="RadzenGrid{TItem}.CellRender" /> event that is being raised.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class CellRenderEventArgs<T> : RowRenderEventArgs<T>
-    {
-        /// <summary>
-        /// Gets the RadzenGridColumn which this cells represents.
-        /// </summary>
-        public RadzenGridColumn<T> Column { get; internal set; }
     }
 
     /// <summary>
@@ -963,12 +935,8 @@ namespace Radzen
     /// <summary>
     /// Represents a file which the user selects for upload via <see cref="RadzenUpload" />.
     /// </summary>
-    public class FileInfo
-#if NET5_0_OR_GREATER
-        : IBrowserFile
-#endif
+    public class FileInfo : IBrowserFile
     {
-#if NET5_0_OR_GREATER
         /// <summary>
         /// Creates FileInfo.
         /// </summary>
@@ -985,7 +953,7 @@ namespace Radzen
         {
             this.source = source;
         }
-#endif
+
         string _name;
         /// <summary>
         /// Gets the name of the selected file.
@@ -994,11 +962,7 @@ namespace Radzen
         {
             get
             {
-#if NET5_0_OR_GREATER
                 return _name ?? source.Name;
-#else
-                return _name;
-#endif
             }
             set
             {
@@ -1014,11 +978,7 @@ namespace Radzen
         {
             get
             {
-#if NET5_0_OR_GREATER
                 return _size != default(long) ? _size : source.Size;
-#else
-                return _size;
-#endif
             }
             set
             {
@@ -1026,7 +986,6 @@ namespace Radzen
             }
         }
 
-#if NET5_0_OR_GREATER
         /// <summary>
         /// Gets the IBrowserFile.
         /// </summary>
@@ -1049,7 +1008,6 @@ namespace Radzen
         {
             return source.OpenReadStream(maxAllowedSize, cancellationToken);
         }
-#endif
     }
 
     /// <summary>
@@ -1405,11 +1363,11 @@ namespace Radzen
         /// </summary>
         Light,
         /// <summary>
-        /// Dark styling. Similar to dark buttons.
+        /// Base styling. Similar to base buttons.
         /// </summary>
         Base,
         /// <summary>
-        /// The default styling.
+        /// Dark styling. Similar to dark buttons.
         /// </summary>
         Dark,
         /// <summary>
@@ -1494,11 +1452,11 @@ namespace Radzen
         /// </summary>
         Light,
         /// <summary>
-        /// Dark styling. Similar to dark buttons.
+        /// Base styling. Similar to base buttons.
         /// </summary>
         Base,
         /// <summary>
-        /// The default styling.
+        /// Dark styling. Similar to dark buttons.
         /// </summary>
         Dark,
         /// <summary>
@@ -1551,6 +1509,10 @@ namespace Radzen
         /// Light styling. Similar to light buttons.
         /// </summary>
         Light,
+        /// <summary>
+        /// Base styling. Similar to base buttons.
+        /// </summary>
+        Base,
         /// <summary>
         /// Dark styling. Similar to dark buttons.
         /// </summary>
@@ -1778,6 +1740,10 @@ namespace Radzen
         /// A button with lighter styling.
         /// </summary>
         Light,
+        /// <summary>
+        /// The base UI styling.
+        /// </summary>
+        Base,
         /// <summary>
         /// A button with dark styling.
         /// </summary>
@@ -2065,6 +2031,10 @@ namespace Radzen
         /// </summary>
         Light,
         /// <summary>
+        /// Base styling. Similar to base buttons.
+        /// </summary>
+        Base,
+        /// <summary>
         /// Dark styling. Similar to dark buttons.
         /// </summary>
         Dark,
@@ -2103,6 +2073,10 @@ namespace Radzen
         /// Light styling. Similar to light buttons.
         /// </summary>
         Light,
+        /// <summary>
+        /// Base styling. Similar to base buttons.
+        /// </summary>
+        Base,
         /// <summary>
         /// Dark styling. Similar to dark buttons.
         /// </summary>
@@ -2243,22 +2217,6 @@ namespace Radzen
         /// Gets the new index of the column.
         /// </summary>
         public int NewIndex { get; internal set; }
-    }
-
-    /// <summary>
-    /// Supplies information about a <see cref="RadzenGrid{TItem}.ColumnResized" /> event that is being raised.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class ColumnResizedEventArgs<T>
-    {
-        /// <summary>
-        /// Gets the resized RadzenGridColumn.
-        /// </summary>
-        public RadzenGridColumn<T> Column { get; internal set; }
-        /// <summary>
-        /// Gets the new width of the column.
-        /// </summary>
-        public double Width { get; internal set; }
     }
 
     /// <summary>
@@ -2469,6 +2427,46 @@ namespace Radzen
         internal DataGridChildData<T> ParentChildData { get; set; }
         internal int Level { get; set; }
         internal IEnumerable<T> Data { get; set; }
+    }
+
+    /// <summary>
+    /// Supplies information about a <see cref="RadzenDataGrid{TItem}.LoadColumnFilterData" /> event that is being raised.
+    /// </summary>
+    public class DataGridLoadColumnFilterDataEventArgs<T>
+    {
+        /// <summary>
+        /// Gets or sets the data.
+        /// </summary>
+        /// <value>The data.</value>
+        public IEnumerable Data { get; set; }
+
+        /// <summary>
+        /// Gets or sets the total data count.
+        /// </summary>
+        /// <value>The total data count.</value>
+        public int Count { get; set; }
+
+        /// <summary>
+        /// Gets how many items to skip. Related to paging and the current page. Usually used with the <see cref="Enumerable.Skip{TSource}(IEnumerable{TSource}, int)"/> LINQ method.
+        /// </summary>
+        public int? Skip { get; set; }
+        /// <summary>
+        /// Gets how many items to take. Related to paging and the current page size. Usually used with the <see cref="Enumerable.Take{TSource}(IEnumerable{TSource}, int)"/> LINQ method.
+        /// </summary>
+        /// <value>The top.</value>
+        public int? Top { get; set; }
+
+        /// <summary>
+        /// Gets the filter expression as a string.
+        /// </summary>
+        /// <value>The filter.</value>
+        public string Filter { get; internal set; }
+
+        /// <summary>
+        /// Gets the column.
+        /// </summary>
+        /// <value>The column.</value>
+        public RadzenDataGridColumn<T> Column { get; internal set; }
     }
 
     /// <summary>
@@ -2740,9 +2738,17 @@ namespace Radzen
         /// </summary>
         public Func<object, string> Text { get; set; }
         /// <summary>
+        /// Gets or sets the function which returns a value for the <see cref="RadzenTreeItem.Checkable" /> of a child item.
+        /// </summary>
+        public Func<object, bool> Checkable { get; set; }
+        /// <summary>
         /// Gets or sets the name of the property which provides the value for the <see cref="RadzenTreeItem.Text" /> of a child item.
         /// </summary>
         public string TextProperty { get; set; }
+        /// <summary>
+        /// Gets or sets the name of the property which provides the value for the <see cref="RadzenTreeItem.Checkable" /> of a child item.
+        /// </summary>
+        public string CheckableProperty { get; set; }
         /// <summary>
         /// Gets or sets a function which returns whether a child item has children of its own. Called with an item from <see cref="Data" />.
         /// By default all items are considered to have children.
@@ -3321,12 +3327,11 @@ namespace Radzen
         /// </summary>
         /// <value>The field identifier.</value>
         FieldIdentifier FieldIdentifier { get; }
-#if NET5_0_OR_GREATER
+
         /// <summary>
         /// Sets the focus.
         /// </summary>
         ValueTask FocusAsync();
-#endif
     }
 
     /// <summary>
