@@ -30,10 +30,10 @@ namespace Radzen.Blazor
     ///   }
     /// </code>
     /// </example>
-    public partial class RadzenSeriesAnnotation<TItem> : RadzenChartComponentBase, IChartSeriesOverlay
+    public partial class RadzenSeriesAnnotation<TItem> : RadzenChartComponentBase, IChartSeriesOverlay, IDisposable
     {
         /// <summary>
-        /// The data item from the series this annotation applies to. 
+        /// The data item from the series this annotation applies to.
         /// </summary>
         [Parameter]
         public TItem Data { get; set; }
@@ -126,7 +126,7 @@ namespace Radzen.Blazor
                     break;
             }
 
-            return builder => 
+            return builder =>
             {
                 builder.OpenElement(0, "g");
                 builder.OpenComponent<Text>(1);
@@ -152,9 +152,18 @@ namespace Radzen.Blazor
         }
 
         /// <inheritdoc/>
-        public RenderFragment RenderTooltip(double mouseX, double mouseY, double marginLeft, double marginTop)
+        public RenderFragment RenderTooltip(double mouseX, double mouseY)
         {
             return null;
         }
+
+        /// <inheritdoc />
+        public Point GetTooltipPosition(double mouseX, double mouseY)
+        {
+            return new Point { X = mouseX, Y = mouseY };
+        }
+
+        /// <inheritdoc/>
+        public void Dispose() => series?.Overlays.Remove(this);
     }
 }

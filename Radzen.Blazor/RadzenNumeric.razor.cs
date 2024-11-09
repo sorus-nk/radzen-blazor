@@ -35,15 +35,14 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         protected override string GetComponentCssClass()
         {
-            return GetClassList("rz-numeric")
-                                        .Add($"rz-text-align-{Enum.GetName(typeof(TextAlign), TextAlign).ToLower()}")
-                                        .ToString();
+            return GetClassList("rz-numeric").ToString();
         }
 
         string GetInputCssClass()
         {
             return GetClassList("rz-numeric-input")
                         .Add("rz-inputtext")
+                        .Add($"rz-text-align-{Enum.GetName(typeof(TextAlign), TextAlign).ToLower()}")
                         .ToString();
         }
 
@@ -94,6 +93,14 @@ namespace Radzen.Blazor
         };
 
 #if NET7_0_OR_GREATER
+        private static TNum SumFloating<TNum>(TNum value1, TNum value2)
+        {
+            var decimalValue1 = (decimal)Convert.ChangeType(value1, TypeCode.Decimal);
+            var decimalValue2 = (decimal)Convert.ChangeType(value2, TypeCode.Decimal);
+
+            return (TNum)Convert.ChangeType(decimalValue1 + decimalValue2, typeof(TNum));
+        }
+
         /// <summary>
         /// Use native numeric type to process the step up/down while checking for possible overflow errors
         /// and clamping to Min/Max values
@@ -117,7 +124,17 @@ namespace Radzen.Blazor
                 return valueToUpdate;
             }
 
-            var newValue = valueToUpdate + (stepUp ? step : -step);
+            TNum newValue = default(TNum);
+
+            if (typeof(TNum) == typeof(double) || typeof(TNum) == typeof(double?) ||
+                typeof(TNum) == typeof(float) || typeof(TNum) == typeof(float?))
+            {
+                newValue = SumFloating(valueToUpdate, (stepUp ? step : -step));
+            }
+            else 
+            {
+                newValue = valueToUpdate + (stepUp ? step : -step);
+            }
 
             if (Max.HasValue && newValue > TNum.CreateSaturating(Max.Value) 
                 || Min.HasValue && newValue < TNum.CreateSaturating(Min.Value) 
@@ -285,13 +302,6 @@ namespace Radzen.Blazor
         /// <value><c>true</c> if is read only; otherwise, <c>false</c>.</value>
         [Parameter]
         public bool ReadOnly { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether input automatic complete is enabled.
-        /// </summary>
-        /// <value><c>true</c> if input automatic complete is enabled; otherwise, <c>false</c>.</value>
-        [Parameter]
-        public override bool AutoComplete { get; set; } = false;
 
         /// <summary>
         /// Gets or sets a value indicating whether up down buttons are shown.
@@ -506,6 +516,8 @@ namespace Radzen.Blazor
                 {
                     await UpdateValueWithStep(false);
                 }
+
+                preventKeyPress = false;
             }
             else
             {

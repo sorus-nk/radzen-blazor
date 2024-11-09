@@ -43,6 +43,13 @@ namespace Radzen.Blazor
         public Action<DataGridCellRenderEventArgs<object>> CellRender { get; set; }
 
         /// <summary>
+        /// Gets or sets the footer template.
+        /// </summary>
+        /// <value>The footer template.</value>
+        [Parameter]
+        public RenderFragment FooterTemplate { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the selected items will be displayed as chips. Set to <c>false</c> by default.
         /// Requires <see cref="DropDownBase{T}.Multiple" /> to be set to <c>true</c>.
         /// </summary>
@@ -196,6 +203,13 @@ namespace Radzen.Blazor
         public bool ShowAdd { get; set; } = false;
 
         /// <summary>
+        /// Gets or sets preserving the selected row index on pageing.
+        /// </summary>
+        /// <value>Row selection preservation on pageing.</value>
+        [Parameter]
+        public bool PreserveRowSelectionOnPaging { get; set; } = false;
+
+        /// <summary>
         /// Gets or sets the page numbers count.
         /// </summary>
         /// <value>The page numbers count.</value>
@@ -345,19 +359,32 @@ namespace Radzen.Blazor
         /// </summary>
         /// <param name="firstRender">if set to <c>true</c> [first render].</param>
         /// <returns>Task.</returns>
-        protected override Task OnAfterRenderAsync(bool firstRender)
+        protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
                 if(Visible && LoadData.HasDelegate && Data == null)
                 {
-                    LoadData.InvokeAsync(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, Filter = searchText });
+                    await LoadData.InvokeAsync(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, Filter = searchText });
                 }
 
                 StateHasChanged();
+
+                if (!Multiple && grid != null && SelectedItem != null)
+                {
+                    var items = (LoadData.HasDelegate ? Data != null ? Data : Enumerable.Empty<object>() : (pagedData != null ? pagedData : Enumerable.Empty<object>())).OfType<object>().ToList();
+                    if (items.Any())
+                    {
+                        selectedIndex = items.IndexOf(SelectedItem);
+                        if (selectedIndex >= 0)
+                        {
+                            await JSRuntime.InvokeAsync<int[]>("Radzen.focusTableRow", grid.GridId(), "ArrowDown", selectedIndex - 1, null);
+                        }
+                    }
+                }
             }
 
-            return base.OnAfterRenderAsync(firstRender);
+            await base.OnAfterRenderAsync(firstRender);
         }
 
         /// <summary>
@@ -370,7 +397,7 @@ namespace Radzen.Blazor
             if (!LoadData.HasDelegate)
             {
                 searchText = null;
-                await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize });
+                await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, OrderBy = "" });
             }
         }
 
@@ -385,7 +412,7 @@ namespace Radzen.Blazor
 
             if (!string.IsNullOrEmpty(searchText) && !LoadData.HasDelegate)
             {
-                await OnLoadData(new Radzen.LoadDataArgs() { Skip = skip, Top = PageSize });
+                await OnLoadData(new Radzen.LoadDataArgs() { Skip = skip, Top = PageSize, OrderBy = "" });
             }
         }
 
@@ -395,7 +422,7 @@ namespace Radzen.Blazor
         public async Task Reload()
         {
             searchText = null;
-            await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize });
+            await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, OrderBy = "" });
         }
 
         private string GetPropertyFilterExpression(string property, string filterCaseSensitivityOperator)
@@ -420,6 +447,7 @@ namespace Radzen.Blazor
         }
 
         string prevSearch;
+        string prevOrder = "";
         int? skip;
         async Task OnLoadData(LoadDataArgs args)
         {
@@ -492,11 +520,28 @@ namespace Radzen.Blazor
                 pagedData = await Task.FromResult(QueryableExtension.ToList(query.Skip(skip.HasValue ? skip.Value : 0).Take(args.Top.HasValue ? args.Top.Value : PageSize)).Cast<object>());
 
                 _internalView = query;
+
+                if (prevOrder != args.OrderBy)
+                {
+                    prevOrder = args.OrderBy;
+                    await JSRuntime.InvokeVoidAsync("eval");
+                }
             }
             else
             {
                 await LoadData.InvokeAsync(new Radzen.LoadDataArgs() { Skip = skip, Top = args.Top, OrderBy = args.OrderBy, Filter = searchText });
             }
+            
+            if(PreserveRowSelectionOnPaging && selectedIndex != -1)
+            {	
+                var items = (LoadData.HasDelegate ? Data != null ? Data : Enumerable.Empty<object>() : (pagedData != null ? pagedData : Enumerable.Empty<object>())).OfType<object>().ToList();
+                selectedIndex = Math.Clamp(selectedIndex, 0, items.Count - 1);
+                
+                await JSRuntime.InvokeAsync<int[]>("Radzen.focusTableRow", grid.GridId(), "ArrowDown", selectedIndex - 1, null);
+
+                await grid.OnRowSelect(items[selectedIndex], false);
+            }
+
         }
 
         IEnumerable _internalView = Enumerable.Empty<object>();
@@ -535,21 +580,32 @@ namespace Radzen.Blazor
             {
                 if (!Multiple)
                 {
+                    bool raiseChange = false;
+
                     if (!string.IsNullOrEmpty(ValueProperty))
                     {
                         var item = Query.Where(DynamicLinqCustomTypeProvider.ParsingConfig, $@"{ValueProperty} == @0", value).FirstOrDefault();
-                        if (item != null)
+                        if (item != null && SelectedItem != item)
                         {
                             SelectedItem = item;
+                            raiseChange = true;
                         }
                     }
                     else
                     {
-                        SelectedItem = internalValue;
+                        if (SelectedItem != internalValue)
+                        {
+                            SelectedItem = internalValue;
+                            raiseChange = true;
+                        }
                     }
-                    SelectedItemChanged.InvokeAsync(SelectedItem);
-                    selectedItems.Clear();
-                    selectedItems.Add(SelectedItem);
+
+                    if (raiseChange)
+                    {
+                        SelectedItemChanged.InvokeAsync(SelectedItem);
+                        selectedItems.Clear();
+                        selectedItems.Add(SelectedItem);
+                    }
                 }
                 else
                 {
@@ -613,7 +669,7 @@ namespace Radzen.Blazor
                 await grid.SelectRow(null);
             }
 
-            await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize });
+            await OnLoadData(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, OrderBy = "" });
 
             StateHasChanged();
         }
@@ -638,7 +694,7 @@ namespace Radzen.Blazor
                     if (shouldChange)
                     {
                         selectedIndex = newSelectedIndex;
-                        await JSRuntime.InvokeAsync<int[]>("Radzen.focusTableRow", grid.GridId(), key, selectedIndex - 1, null);
+                        await JSRuntime.InvokeAsync<int[]>("Radzen.focusTableRow", grid.GridId(), key, selectedIndex + (key == "ArrowUp" ? 1 : -1), null);
                         await grid.OnRowSelect(items[selectedIndex], false);
                     }
 
@@ -688,10 +744,7 @@ namespace Radzen.Blazor
                         }
                     }
 
-                    if (!Multiple)
-                    {
-                        await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
-                    }
+                    await CloseAndFocus();
                 }
             }
             else if (args.AltKey && key == "ArrowDown")
@@ -861,18 +914,27 @@ namespace Radzen.Blazor
 
         async Task OnRowSelect(object item)
         {
-            if (!Disabled && !Multiple)
-            {
-                await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
-            }
-
-            await JSRuntime.InvokeVoidAsync("Radzen.focusElement", UniqueID);
+            await CloseAndFocus();
 
             if (AllowRowSelectOnRowClick)
             {
                 await SelectItem(item);
             }
+        }
 
+        async Task CloseAndFocus()
+        {
+            if (!Disabled && !Multiple)
+            {
+                await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
+            }
+
+            var of = OpenOnFocus;
+            OpenOnFocus = false;
+
+            await JSRuntime.InvokeVoidAsync("Radzen.focusElement", UniqueID);
+
+            OpenOnFocus = of;
         }
 
         private async Task OnChipRemove(object item)

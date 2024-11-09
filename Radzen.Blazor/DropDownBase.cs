@@ -675,8 +675,10 @@ namespace Radzen
 
                 if (selectedIndex >= 0 && selectedIndex <= items.Count() - 1)
                 {
-                    await JSRuntime.InvokeAsync<string>("Radzen.setInputValue", search, $"{searchText}".Trim());
                     var itemToSelect = items.ElementAtOrDefault(selectedIndex);
+
+                    await JSRuntime.InvokeAsync<string>("Radzen.setInputValue", search, $"{searchText}".Trim());
+                    
                     if (itemToSelect != null)
                     {
                         await OnSelectItem(itemToSelect, true);
@@ -693,7 +695,7 @@ namespace Radzen
                 {
                     if (!Multiple)
                     {
-                        await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
+                        await ClosePopup(key);
                     }
                 }
             }
@@ -705,7 +707,7 @@ namespace Radzen
             }
             else if (key == "Escape" || key == "Tab")
             {
-                await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
+                await ClosePopup(key);
             }
             else if (key == "Delete" && AllowClear)
             {
@@ -764,6 +766,11 @@ namespace Radzen
 
                 preventKeydown = false;
             }
+        }
+
+        internal virtual async Task ClosePopup(string key)
+        {
+            await JSRuntime.InvokeVoidAsync("Radzen.closePopup", PopupID);
         }
 
         int itemIndex;
